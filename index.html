@@ -1506,11 +1506,13 @@
     const NCOLS = 6;
     const ITEM_LOOP_COPIES = 3;
     const ITEM_WRAP_TOP_PAD = 28;
+    const itemColLoopHeights = Array.from({ length: NCOLS }, () => 1);
     const itemCols = Array.from({ length: NCOLS }, (_, idx) => document.getElementById("ic" + idx));
     let itemLoopSpan = 1;
 
     function buildItemView(){
       itemRegistry.length = 0;
+      itemColLoopHeights.fill(1);
       for(let c=0;c<NCOLS;c++){
         const col = itemCols[c];
         col.innerHTML = "";
@@ -1545,10 +1547,6 @@
               addItemPh(card, item.label, ratio);
             }
             col.appendChild(card);
-            const registryIndex = itemRegistry.length;
-            if (copy === 1) {
-              card.dataset.registryIndex = String(registryIndex);
-            }
             itemRegistry.push({
               el: card,
               colIdx: c,
@@ -1578,15 +1576,18 @@
 
     /* 카드 절대 위치를 한 번 측정해두기 — 스크롤 후에도 유효 */
     function measureItemCards(){
-      let firstCycleBottom = 0;
+      const firstCycleBottoms = Array.from({ length: NCOLS }, () => 0);
       itemRegistry.forEach(entry => {
         entry.topAbs = entry.el.offsetTop;
         entry.height = entry.el.offsetHeight;
         if(entry.copyIdx === 0){
-          firstCycleBottom = Math.max(firstCycleBottom, entry.topAbs + entry.height);
+          firstCycleBottoms[entry.colIdx] = Math.max(firstCycleBottoms[entry.colIdx], entry.topAbs + entry.height);
         }
       });
-      itemLoopSpan = Math.max(1, firstCycleBottom + 8);
+      firstCycleBottoms.forEach((height, idx) => {
+        itemColLoopHeights[idx] = Math.max(1, height + 8);
+      });
+      itemLoopSpan = Math.max(1, ...itemColLoopHeights);
     }
 
     /* ── 스크롤 상태 ── */
@@ -1610,21 +1611,23 @@
       const vel = Math.abs(iScrollVel);
       const flowTilt = Math.max(-7, Math.min(7, iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
-      const wrappedScroll = itemLoopSpan + positiveModulo(iScrollTop, itemLoopSpan);
+      const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
+      const colOffsets = itemColLoopHeights.map(span => span + positiveModulo(wrappedScroll, span));
 
       itemCols.forEach((col, idx) => {
-        if (col) col.style.transform = "translate3d(0," + (-wrappedScroll) + "px,0)";
+        if (col) col.style.transform = "translate3d(0," + (-colOffsets[idx]) + "px,0)";
       });
 
       /* is-active 업데이트 먼저 */
-      itemRegistry.forEach((entry, idx) => {
-        entry.el.classList.toggle("is-active", idx === iActiveIdx);
+      itemRegistry.forEach((entry) => {
+        const isInteractiveCopy = entry.copyIdx === 1;
+        entry.el.classList.toggle("is-active", isInteractiveCopy && entry.dataIndex === iActiveIdx);
       });
 
       /* 카드별 흐름 모션 */
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
-        const centerY = ITEM_WRAP_TOP_PAD + entry.topAbs + (entry.height * 0.5) - wrappedScroll;
+        const centerY = ITEM_WRAP_TOP_PAD + entry.topAbs + (entry.height * 0.5) - colOffsets[entry.colIdx];
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
         if(visT < -1.6 || visT > 1.6){
@@ -1667,14 +1670,12 @@
       if(cx<vr.left||cy<vr.top||cx>vr.right||cy>vr.bottom){ iActiveIdx=-1; return; }
 
       let hit = -1;
-      const hoveredEl = document.elementFromPoint(cx, cy);
-      const hoveredCard = hoveredEl && hoveredEl.closest
-        ? hoveredEl.closest(".item-card[data-registry-index]")
-        : null;
-      if (hoveredCard && iv.contains(hoveredCard)) {
-        const registryIndex = Number(hoveredCard.dataset.registryIndex);
-        hit = Number.isFinite(registryIndex) ? registryIndex : -1;
-      }
+      itemRegistry.forEach((entry) => {
+        const r = entry.el.getBoundingClientRect();
+        if(cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom){
+          hit = entry.dataIndex;
+        }
+      });
       iActiveIdx = hit;
     }
 
@@ -1716,7 +1717,8 @@
 
       function endPtr(e){
         if(!iPtrMoved && iActiveIdx >= 0){
-          const hit = itemRegistry[iActiveIdx];
+          /* iActiveIdx는 이제 dataIndex — copyIdx=1 카드에서 itemData 찾기 */
+          const hit = itemRegistry.find(entry => entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
           if(hit && hit.itemData) openSlit(hit.itemData);
         }
         iPtrDown=false;
