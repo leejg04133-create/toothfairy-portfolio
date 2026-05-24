@@ -1093,6 +1093,11 @@
     const AUTO_MEDIA_EXTENSIONS = ["png", "gif", "webp", "jpg", "jpeg"];
     const AUTO_MEDIA_INDEX_MAX = 300;
     const AUTO_MEDIA_MISS_LIMIT = 20;
+    const GITHUB_OWNER = "leejg04133-create";
+    const GITHUB_REPO = "toothfairy-portfolio";
+    const GITHUB_BRANCH = "main";
+    const GITHUB_CONTENTS_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents`;
+    const IS_REMOTE_SITE = /^https?:$/i.test(window.location.protocol);
 
     function getAutoMediaCandidates(folder, index) {
       const plain = String(index);
@@ -1139,6 +1144,27 @@
       return `소품 ${String(index + 1).padStart(2, "0")}`;
     }
 
+    function getNumericStem(name) {
+      const match = String(name || "").match(/^(\d+)/);
+      return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+    }
+
+    async function fetchGithubFolderMedia(folder, makeData) {
+      const response = await fetch(`${GITHUB_CONTENTS_API}/${folder}?ref=${GITHUB_BRANCH}`, {
+        headers: { "Accept": "application/vnd.github+json" }
+      });
+      if (!response.ok) {
+        throw new Error(`GitHub contents fetch failed: ${folder} ${response.status}`);
+      }
+
+      const entries = await response.json();
+      return entries
+        .filter((entry) => entry && entry.type === "file")
+        .filter((entry) => /\.(png|gif|webp|jpg|jpeg)$/i.test(entry.name || ""))
+        .sort((a, b) => getNumericStem(a.name) - getNumericStem(b.name))
+        .map((entry, idx) => makeData(idx + 1, entry.download_url, entry.name));
+    }
+
     async function discoverSequentialMedia(folder, makeData) {
       const discovered = [];
       let missCount = 0;
@@ -1155,37 +1181,80 @@
     }
 
     async function syncMediaFromFolders() {
-      const discoveredPortfolioItems = await discoverSequentialMedia("image", (index, src) => {
-        const meta = makePortfolioMeta(index - 1);
-        return {
-          number: String(index).padStart(2, "0"),
-          title: meta.title,
-          subtitle: meta.subtitle,
-          src
-        };
-      });
+      try {
+        if (IS_REMOTE_SITE) {
+          const [discoveredPortfolioItems, discoveredItemImages] = await Promise.all([
+            fetchGithubFolderMedia("image", (index, src) => {
+              const meta = makePortfolioMeta(index - 1);
+              return {
+                number: String(index).padStart(2, "0"),
+                title: meta.title,
+                subtitle: meta.subtitle,
+                src
+              };
+            }),
+            fetchGithubFolderMedia("item", (index, src) => ({
+              src,
+              label: makeItemLabel(index - 1)
+            }))
+          ]);
 
-      if (discoveredPortfolioItems.length > 0) {
-        portfolioItems = discoveredPortfolioItems;
-        buildGallery();
-        resizeGallery();
-        startRender();
-      }
+          if (discoveredPortfolioItems.length > 0) {
+            portfolioItems = discoveredPortfolioItems;
+            buildGallery();
+            resizeGallery();
+            startRender();
+          }
 
-      const discoveredItemImages = await discoverSequentialMedia("item", (index, src) => ({
-        src,
-        label: makeItemLabel(index - 1)
-      }));
-
-      if (discoveredItemImages.length > 0) {
-        itemImages = discoveredItemImages;
-        if (curView === "item") {
-          buildItemView();
-          requestAnimationFrame(() => {
-            resizeItemView();
-            measureItemCards();
-          });
+          if (discoveredItemImages.length > 0) {
+            itemImages = discoveredItemImages;
+            itemShuffleOrder = null;
+            if (curView === "item") {
+              buildItemView();
+              requestAnimationFrame(() => {
+                resizeItemView();
+                measureItemCards();
+              });
+            }
+          }
+          return;
         }
+
+        const discoveredPortfolioItems = await discoverSequentialMedia("image", (index, src) => {
+          const meta = makePortfolioMeta(index - 1);
+          return {
+            number: String(index).padStart(2, "0"),
+            title: meta.title,
+            subtitle: meta.subtitle,
+            src
+          };
+        });
+
+        if (discoveredPortfolioItems.length > 0) {
+          portfolioItems = discoveredPortfolioItems;
+          buildGallery();
+          resizeGallery();
+          startRender();
+        }
+
+        const discoveredItemImages = await discoverSequentialMedia("item", (index, src) => ({
+          src,
+          label: makeItemLabel(index - 1)
+        }));
+
+        if (discoveredItemImages.length > 0) {
+          itemImages = discoveredItemImages;
+          itemShuffleOrder = null;
+          if (curView === "item") {
+            buildItemView();
+            requestAnimationFrame(() => {
+              resizeItemView();
+              measureItemCards();
+            });
+          }
+        }
+      } catch (error) {
+        console.warn("[portfolio] media sync failed", error);
       }
     }
 
@@ -1535,9 +1604,6 @@
       iMaxScroll = Math.max(1, itemLoopSpan);
     }
 
-    /* 소품 카드 hover scale lerp 상태 (itemRegistry 인덱스 기준) */
-    const itemHoverScales = [];
-
     function renderItemView(){
       iScrollTop += (iTargetScroll - iScrollTop) * 0.18;
       iScrollVel *= 0.9;
@@ -1558,39 +1624,32 @@
         entry.el.classList.toggle("is-active", isInteractiveCopy && entry.dataIndex === iActiveIdx);
       });
 
-      /* 카드별 파동 + hover scale lerp */
+      /* 카드별 흐름 모션 */
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
         const centerY = ITEM_WRAP_TOP_PAD + entry.topAbs + (entry.height * 0.5) - colOffsets[entry.colIdx];
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
-        /* hover scale lerp — visT 범위와 무관하게 항상 먼저 계산 */
-        const isHovered = (entry.dataIndex === iActiveIdx);
-        const hsTarget = isHovered ? 1 : 0;
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (hsTarget - (itemHoverScales[idx] || 0)) * 0.13;
-        const hs = itemHoverScales[idx];
-
         if(visT < -1.6 || visT > 1.6){
-          if(hs > 0.002){
-            card.style.transform = "scale(" + (1 + hs * 0.18).toFixed(4) + ")";
-          } else {
-            card.style.transform = "";
-          }
+          card.style.transform = "";
           return;
         }
 
         const normalized = Math.max(-1, Math.min(1, visT));
         const depth = Math.abs(normalized);
         const colPhase = entry.colIdx - ((NCOLS - 1) * 0.5);
-        const lift = -depth * 10 - hs * 6;
+        const isHovered = (idx === iActiveIdx);
+        const hoverLift = isHovered ? -8 : 0;
+        const hoverScale = isHovered ? 1.12 : 1;
+        const lift = -depth * 10 + hoverLift;
         const driftX = colPhase * 3 + flowDrift * 0.22;
         const driftY = normalized * -6;
         const rotX = (normalized * -5) + (flowTilt * 0.45);
         const rotZ = (colPhase * 0.55) + (flowTilt * 0.18);
         const baseScale = 1 - depth * 0.025;
-        const hScale = baseScale + hs * 0.18;
+        const finalScale = baseScale * hoverScale;
         card.style.transform =
-          "perspective(520px) translate3d("+driftX+"px,"+(lift + driftY)+"px,0) rotateX("+rotX+"deg) rotateZ("+rotZ+"deg) scale("+hScale.toFixed(4)+")";
+          "perspective(520px) translate3d("+driftX+"px,"+(lift + driftY)+"px,0) rotateX("+rotX+"deg) rotateZ("+rotZ+"deg) scale("+finalScale.toFixed(4)+")";
       });
 
       iRafId = requestAnimationFrame(renderItemView);
