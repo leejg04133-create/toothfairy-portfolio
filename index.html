@@ -1604,11 +1604,13 @@
       iMaxScroll = Math.max(1, itemLoopSpan);
     }
 
+    /* 카드별 hover scale lerp 상태 */
+    const itemHoverScales = [];
+
     function renderItemView(){
       iScrollTop += (iTargetScroll - iScrollTop) * 0.18;
       iScrollVel *= 0.9;
 
-      const vel = Math.abs(iScrollVel);
       const flowTilt = Math.max(-7, Math.min(7, iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
@@ -1618,38 +1620,46 @@
         if (col) col.style.transform = "translate3d(0," + (-colOffsets[idx]) + "px,0)";
       });
 
-      /* is-active 업데이트 먼저 */
+      /* is-active 업데이트 */
       itemRegistry.forEach((entry) => {
-        const isInteractiveCopy = entry.copyIdx === 1;
-        entry.el.classList.toggle("is-active", isInteractiveCopy && entry.dataIndex === iActiveIdx);
+        entry.el.classList.toggle("is-active", entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
       });
 
-      /* 카드별 흐름 모션 */
+      /* 카드별 흐름 모션 + hover lerp */
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
         const centerY = ITEM_WRAP_TOP_PAD + entry.topAbs + (entry.height * 0.5) - colOffsets[entry.colIdx];
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
+        /* hover scale lerp — visT 범위 체크보다 먼저, 항상 실행 */
+        const isHovered = (entry.dataIndex === iActiveIdx);
+        const hsTarget = isHovered ? 1 : 0;
+        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (hsTarget - (itemHoverScales[idx] || 0)) * 0.12;
+        const hs = itemHoverScales[idx];
+
+        /* 화면 밖이고 hover도 없으면 transform 제거 */
         if(visT < -1.6 || visT > 1.6){
-          card.style.transform = "";
+          if(hs < 0.002){
+            card.style.transform = "";
+          } else {
+            /* hover 중인 카드는 화면 밖이어도 scale 유지 — 뚝 끊김 방지 */
+            card.style.transform = "scale(" + (1 + hs * 0.12).toFixed(4) + ")";
+          }
           return;
         }
 
         const normalized = Math.max(-1, Math.min(1, visT));
         const depth = Math.abs(normalized);
         const colPhase = entry.colIdx - ((NCOLS - 1) * 0.5);
-        const isHovered = (idx === iActiveIdx);
-        const hoverLift = isHovered ? -8 : 0;
-        const hoverScale = isHovered ? 1.12 : 1;
-        const lift = -depth * 10 + hoverLift;
-        const driftX = colPhase * 3 + flowDrift * 0.22;
-        const driftY = normalized * -6;
-        const rotX = (normalized * -5) + (flowTilt * 0.45);
-        const rotZ = (colPhase * 0.55) + (flowTilt * 0.18);
+        const lift      = -depth * 10 - hs * 8;
+        const driftX    = colPhase * 3 + flowDrift * 0.22;
+        const driftY    = normalized * -6;
+        const rotX      = (normalized * -5) + (flowTilt * 0.45);
+        const rotZ      = (colPhase * 0.55) + (flowTilt * 0.18);
         const baseScale = 1 - depth * 0.025;
-        const finalScale = baseScale * hoverScale;
+        const finalScale = baseScale + hs * 0.12;
         card.style.transform =
-          "perspective(520px) translate3d("+driftX+"px,"+(lift + driftY)+"px,0) rotateX("+rotX+"deg) rotateZ("+rotZ+"deg) scale("+finalScale.toFixed(4)+")";
+          "perspective(520px) translate3d("+driftX+"px,"+(lift+driftY)+"px,0) rotateX("+rotX+"deg) rotateZ("+rotZ+"deg) scale("+finalScale.toFixed(4)+")";
       });
 
       iRafId = requestAnimationFrame(renderItemView);
