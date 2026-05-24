@@ -1584,10 +1584,10 @@
           firstCycleBottoms[entry.colIdx] = Math.max(firstCycleBottoms[entry.colIdx], entry.topAbs + entry.height);
         }
       });
-      firstCycleBottoms.forEach((height, idx) => {
-        itemColLoopHeights[idx] = Math.max(1, height + 8);
-      });
-      itemLoopSpan = Math.max(1, ...itemColLoopHeights);
+      /* 모든 열이 동일한 루프 높이를 써야 지진이 안 남 — 최대값으로 통일 */
+      const maxHeight = Math.max(1, ...firstCycleBottoms.map(h => h + 8));
+      itemColLoopHeights.fill(maxHeight);
+      itemLoopSpan = maxHeight;
     }
 
     /* ── 스크롤 상태 ── */
@@ -1614,7 +1614,8 @@
       const flowTilt = Math.max(-7, Math.min(7, iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
-      const colOffsets = itemColLoopHeights.map(span => span + positiveModulo(wrappedScroll, span));
+      const singleOffset = itemLoopSpan + wrappedScroll;
+      const colOffsets = itemColLoopHeights.map(() => singleOffset);
 
       itemCols.forEach((col, idx) => {
         if (col) col.style.transform = "translate3d(0," + (-colOffsets[idx]) + "px,0)";
