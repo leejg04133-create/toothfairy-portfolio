@@ -1629,10 +1629,13 @@
       /* 카드별 흐름 모션 + hover lerp */
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
-        const centerY = ITEM_WRAP_TOP_PAD + entry.topAbs + (entry.height * 0.5) - colOffsets[entry.colIdx];
+
+        /* centerY: 카드의 실제 화면상 중앙 Y — getBoundingClientRect로 정확하게 */
+        const r = card.getBoundingClientRect();
+        const centerY = r.top + r.height * 0.5;
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
-        /* hover scale lerp — visT 범위 체크보다 먼저, 항상 실행 */
+        /* hover scale lerp — 항상 먼저 실행 */
         const isHovered = (entry.dataIndex === iActiveIdx);
         const hsTarget = isHovered ? 1 : 0;
         itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (hsTarget - (itemHoverScales[idx] || 0)) * 0.12;
@@ -1643,7 +1646,6 @@
           if(hs < 0.002){
             card.style.transform = "";
           } else {
-            /* hover 중인 카드는 화면 밖이어도 scale 유지 — 뚝 끊김 방지 */
             card.style.transform = "scale(" + (1 + hs * 0.12).toFixed(4) + ")";
           }
           return;
