@@ -1545,6 +1545,10 @@
               addItemPh(card, item.label, ratio);
             }
             col.appendChild(card);
+            const registryIndex = itemRegistry.length;
+            if (copy === 1) {
+              card.dataset.registryIndex = String(registryIndex);
+            }
             itemRegistry.push({
               el: card,
               colIdx: c,
@@ -1613,9 +1617,8 @@
       });
 
       /* is-active 업데이트 먼저 */
-      itemRegistry.forEach((entry) => {
-        const isInteractiveCopy = entry.copyIdx === 1;
-        entry.el.classList.toggle("is-active", isInteractiveCopy && entry.dataIndex === iActiveIdx);
+      itemRegistry.forEach((entry, idx) => {
+        entry.el.classList.toggle("is-active", idx === iActiveIdx);
       });
 
       /* 카드별 흐름 모션 */
@@ -1664,12 +1667,14 @@
       if(cx<vr.left||cy<vr.top||cx>vr.right||cy>vr.bottom){ iActiveIdx=-1; return; }
 
       let hit = -1;
-      itemRegistry.forEach((entry) => {
-        const r = entry.el.getBoundingClientRect();
-        if(cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom){
-          hit = entry.dataIndex;
-        }
-      });
+      const hoveredEl = document.elementFromPoint(cx, cy);
+      const hoveredCard = hoveredEl && hoveredEl.closest
+        ? hoveredEl.closest(".item-card[data-registry-index]")
+        : null;
+      if (hoveredCard && iv.contains(hoveredCard)) {
+        const registryIndex = Number(hoveredCard.dataset.registryIndex);
+        hit = Number.isFinite(registryIndex) ? registryIndex : -1;
+      }
       iActiveIdx = hit;
     }
 
@@ -1711,8 +1716,7 @@
 
       function endPtr(e){
         if(!iPtrMoved && iActiveIdx >= 0){
-          /* iActiveIdx는 이제 dataIndex — copyIdx=1 카드에서 itemData 찾기 */
-          const hit = itemRegistry.find(entry => entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
+          const hit = itemRegistry[iActiveIdx];
           if(hit && hit.itemData) openSlit(hit.itemData);
         }
         iPtrDown=false;
