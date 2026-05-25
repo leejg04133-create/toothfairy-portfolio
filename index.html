@@ -1572,21 +1572,22 @@
       card.appendChild(ph);
     }
 
-    /* 카드 절대 위치를 한 번 측정해두기 — 스크롤 후에도 유효 */
-    const itemColTops = Array.from({ length: NCOLS }, () => 0); /* col의 itemView 기준 top */
+    /* 카드 절대 위치를 한 번 측정해두기 */
+    let itemWrapTop = 0; /* item-masonry-wrap의 itemView 기준 top (= padding-top 28px) */
 
     function measureItemCards(){
-      const iv = document.getElementById("itemView");
-      const ivTop = iv ? iv.getBoundingClientRect().top : 0;
+      /* colTranslate가 0인 상태에서 측정해야 정확 — 측정 전 transform 임시 제거 */
+      itemCols.forEach(col => { if(col) col.style.transform = ""; });
 
-      /* col의 화면상 top을 한 번 측정 (transform 적용 전, translateY=0 상태) */
-      itemCols.forEach((col, idx) => {
-        if(col) itemColTops[idx] = col.getBoundingClientRect().top - ivTop;
-      });
+      const wrap = document.getElementById("itemWrap");
+      const iv   = document.getElementById("itemView");
+      if(wrap && iv){
+        itemWrapTop = wrap.getBoundingClientRect().top - iv.getBoundingClientRect().top;
+      }
 
       const firstCycleBottoms = Array.from({ length: NCOLS }, () => 0);
       itemRegistry.forEach(entry => {
-        entry.topAbs = entry.el.offsetTop;
+        entry.topAbs = entry.el.offsetTop; /* col 기준 상대 top */
         entry.height = entry.el.offsetHeight;
         if(entry.copyIdx === 0){
           firstCycleBottoms[entry.colIdx] = Math.max(firstCycleBottoms[entry.colIdx], entry.topAbs + entry.height);
@@ -1636,8 +1637,8 @@
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
 
-        /* centerY: itemView 기준 col top + col translateY + 카드 offsetTop + 카드 높이/2 */
-        const centerY = itemColTops[entry.colIdx] + colTranslate + entry.topAbs + entry.height * 0.5;
+        /* centerY: wrap의 ivTop 기준 top + colTranslate + 카드 offsetTop + 높이/2 */
+        const centerY = itemWrapTop + colTranslate + entry.topAbs + entry.height * 0.5;
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
         /* hover scale lerp — 항상 먼저 실행 */
