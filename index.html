@@ -1700,6 +1700,7 @@
     let viewSyncRafId = null;
     let galleryVisibilityObserver = null;
     let mobileSnapTimeoutId = null;
+    let isMobileGalleryPage = false;
 
     function isMobileLayout() {
       return Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0) <= MOBILE_LAYOUT_BREAKPOINT;
@@ -2090,11 +2091,23 @@
     }
 
     function setMobileGalleryState(isActive) {
-      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      const nextActive = Boolean(isActive) && isMobileLayout();
+      if (nextActive === isMobileGalleryPage) return;
+      isMobileGalleryPage = nextActive;
+
+      document.body.classList.toggle("mobile-gallery-active", nextActive);
       if (shellRoot) {
-        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+        shellRoot.classList.toggle("is-gallery-page", nextActive);
       }
-      if (isActive) {
+
+      if (nextActive && shellRoot) {
+        const shellHeight = Math.max(1, shellRoot.clientHeight);
+        if (Math.abs(shellRoot.scrollTop - shellHeight) > 1) {
+          shellRoot.scrollTop = shellHeight;
+        }
+      }
+
+      if (nextActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
     }
@@ -2116,8 +2129,9 @@
       if (mobileSnapTimeoutId) clearTimeout(mobileSnapTimeoutId);
       mobileSnapTimeoutId = setTimeout(() => {
         mobileSnapTimeoutId = null;
+        const wasGalleryPage = isMobileGalleryPage;
         updateMobileSnapState();
-        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
+        if (!wasGalleryPage && isMobileGalleryPage) {
           scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
         }
       }, 90);
