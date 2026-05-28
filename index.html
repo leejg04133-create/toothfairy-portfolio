@@ -1422,19 +1422,23 @@
     }
 
     function getBgLerpFactor() {
-      return isMobileLayout() ? 0.42 : 0.18;
+      return isMobileLayout() ? 0.3 : 0.18;
     }
 
     function getItemLerpFactor() {
-      return isMobileLayout() ? 0.4 : 0.18;
+      return isMobileLayout() ? 0.3 : 0.18;
     }
 
     function getDragVelocityFactor() {
-      return isMobileLayout() ? 0.32 : 1.8;
+      return isMobileLayout() ? 0.95 : 1.8;
     }
 
     function getWheelVelocityFactor() {
-      return isMobileLayout() ? 0.18 : 0.7;
+      return isMobileLayout() ? 0.55 : 0.7;
+    }
+
+    function getMomentumDecay() {
+      return isMobileLayout() ? 0.94 : 0.9;
     }
 
     function syncBgScrollPosition(nextScrollTop) {
@@ -1586,8 +1590,12 @@
     const slitHoverScales = [];   /* 각 dataIndex 별 현재 hover scale (0~1) */
 
     function render() {
+      if (!pointerDown && Math.abs(scrollVelocity) > 0.08) {
+        targetScrollTop += scrollVelocity;
+      }
       scrollTop += (targetScrollTop - scrollTop) * getBgLerpFactor();
-      scrollVelocity *= isMobileLayout() ? 0.82 : 0.9;
+      scrollVelocity *= getMomentumDecay();
+      if (Math.abs(scrollVelocity) < 0.02) scrollVelocity = 0;
       const loopSpan = portfolioItems.length * slitPitch;
       bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
@@ -1881,8 +1889,12 @@
     const itemHoverScales = [];
 
     function renderItemView(){
+      if (!iPtrDown && Math.abs(iScrollVel) > 0.08) {
+        iTargetScroll += iScrollVel;
+      }
       iScrollTop += (iTargetScroll - iScrollTop) * getItemLerpFactor();
-      iScrollVel *= isMobileLayout() ? 0.82 : 0.9;
+      iScrollVel *= getMomentumDecay();
+      if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
 
       const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
@@ -2013,7 +2025,7 @@
           } else {
             iTargetScroll = nextScroll;
           }
-          iScrollVel = (iLastY - e.clientY) * getDragVelocityFactor();
+          iScrollVel = ((iLastY - e.clientY) * getDragVelocityFactor()) + (iScrollVel * 0.18);
           iLastY = e.clientY;
         } else {
           updateItemHover(e.clientX, e.clientY);
@@ -2203,7 +2215,7 @@
         } else {
           targetScrollTop = nextScroll;
         }
-        scrollVelocity = (lastPointerY - e.clientY) * getDragVelocityFactor();
+        scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
         lastPointerY = e.clientY;
       }
     });
