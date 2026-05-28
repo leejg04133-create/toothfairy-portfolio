@@ -1517,7 +1517,11 @@
         const col = itemCols[c];
         col.innerHTML = "";
         col.style.minHeight = "";
+        col.style.transform = "";
       }
+      const wrap = document.getElementById("itemWrap");
+      if(wrap) wrap.style.transform = "";
+
       if(!itemShuffleOrder || itemShuffleOrder.length !== itemImages.length){
         itemShuffleOrder = shuffleArr(itemImages.map((_, idx) => idx));
       }
@@ -1527,26 +1531,16 @@
         baseColumns[i % NCOLS].push({ ...item, orderIndex: i });
       });
 
-      /* 각 컬럼의 ratio 합산 → 최대값 기준으로 ratio 스케일 조정해서 높이 통일 */
-      const colRatioSums = baseColumns.map((items, c) => {
-        const ratios = ITEM_COL_RATIOS[c];
-        return items.reduce((sum, _, localIdx) => sum + ratios[localIdx % ratios.length], 0);
-      });
-      const maxRatioSum = Math.max(1, ...colRatioSums);
-
       for(let c=0;c<NCOLS;c++){
         const col = itemCols[c];
         const baseItems = baseColumns[c];
-        const ratioSum = colRatioSums[c] || 1;
-        const scale = maxRatioSum / ratioSum; /* 짧은 컬럼의 ratio를 늘려서 높이 맞춤 */
-
         for(let copy=0; copy<ITEM_LOOP_COPIES; copy+=1){
           baseItems.forEach((item, localIdx) => {
             const baseIndex = item.orderIndex;
             const card = document.createElement("div");
             card.className = "item-card";
             const ratios = ITEM_COL_RATIOS[c];
-            const ratio  = ratios[localIdx % ratios.length] * scale; /* 스케일 적용 */
+            const ratio  = ratios[localIdx % ratios.length];
             const src    = resolveAssetSrc(item.src);
             if(src){
               const img = document.createElement("img");
@@ -1589,48 +1583,35 @@
     let itemWrapTop = 0; /* item-masonry-wrap의 itemView 기준 top (= padding-top 28px) */
 
     function measureItemCards(){
-      /* transform 제거 후 측정 */
-      itemCols.forEach(col => {
-        if(!col) return;
-        col.style.transform = "";
-        col.style.minHeight = "";
-      });
-
+      /* 측정 전: col transform, wrap transform 모두 제거 */
+      itemCols.forEach(col => { if(col){ col.style.transform = ""; col.style.minHeight = ""; } });
       const wrap = document.getElementById("itemWrap");
       const iv   = document.getElementById("itemView");
+      if(wrap) wrap.style.transform = "";
+
       if(wrap && iv){
         itemWrapTop = wrap.getBoundingClientRect().top - iv.getBoundingClientRect().top;
       }
 
+      /* getBoundingClientRect로 wrap 기준 절대 Y 측정 → offsetTop보다 정확 */
+      const wrapTop = wrap ? wrap.getBoundingClientRect().top : 0;
       itemRegistry.forEach(entry => {
-        entry.topAbs = entry.el.offsetTop;
+        const r = entry.el.getBoundingClientRect();
+        entry.topAbs = r.top - wrapTop;
         entry.height = entry.el.offsetHeight;
       });
 
-      /* copy 0 기준 각 컬럼 높이 */
-      const firstCycleBottoms = Array.from({ length: NCOLS }, () => 0);
+      /* copy 0 중 가장 아래 bottom → 1세트 실제 높이 */
+      let maxBottom = 1;
       itemRegistry.forEach(entry => {
         if(entry.copyIdx === 0){
-          firstCycleBottoms[entry.colIdx] = Math.max(firstCycleBottoms[entry.colIdx], entry.topAbs + entry.height);
+          maxBottom = Math.max(maxBottom, entry.topAbs + entry.height);
         }
       });
 
-      /* 모든 컬럼을 가장 긴 컬럼 높이에 맞춤 → 루프 단위가 동기화돼서 지진 없음 */
-      const loopH = Math.max(1, ...firstCycleBottoms);
-      for(let c = 0; c < NCOLS; c++){
-        const col = itemCols[c];
-        /* min-height를 loopH * 3(copy수)로 설정 — 짧은 컬럼도 동일한 DOM 높이 */
-        if(col) col.style.minHeight = (loopH * ITEM_LOOP_COPIES) + "px";
-      }
-
-      /* min-height 적용 후 재측정 */
-      itemRegistry.forEach(entry => {
-        entry.topAbs = entry.el.offsetTop;
-        entry.height = entry.el.offsetHeight;
-      });
-
-      itemColLoopHeights.fill(loopH);
-      itemLoopSpan = loopH;
+      /* loopSpan = copy 1세트 높이. 컬럼별 차이 없이 wrap 전체 기준이므로 항상 정확 */
+      itemLoopSpan = maxBottom + 20;
+      itemColLoopHeights.fill(itemLoopSpan);
     }
 
     /* ── 스크롤 상태 ── */
@@ -1654,56 +1635,63 @@
       iScrollTop += (iTargetScroll - iScrollTop) * 0.18;
       iScrollVel *= 0.9;
 
-      const flowTilt = Math.max(-7, Math.min(7, iScrollVel * 0.035));
+      const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
-      const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
-      const colTranslate = -(itemLoopSpan + wrappedScroll);
 
-      itemCols.forEach((col) => {
-        if (col) col.style.transform = "translate3d(0," + colTranslate + "px,0)";
-      });
-      const colTranslates = itemCols.map(() => colTranslate);
+      /* ─── 핵심: 컬럼이 아닌 wrap 전체를 이동 ───
+         wrappedScroll = iScrollTop을 loopSpan으로 나눈 나머지 (항상 양수)
+         wrap을 -(loopSpan + wrappedScroll) 만큼 올리면:
+           copy0 → 화면 위로 올라감
+           copy1 → 화면에 보임
+           copy2 → 화면 아래 대기
+         wrappedScroll이 loopSpan에 도달하면 다시 0으로 돌아가면서
+         copy0이 copy3 역할을 하는 seamless 루프 완성 */
+      const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
+      const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
+
+      const wrap = document.getElementById("itemWrap");
+      if(wrap) wrap.style.transform = "translate3d(0," + wrapTranslateY + "px,0)";
+
+      /* 컬럼에는 transform 적용 안 함 — 이게 지진의 원인이었음 */
+      itemCols.forEach(col => { if(col) col.style.transform = ""; });
 
       /* is-active 업데이트 */
       itemRegistry.forEach((entry) => {
         entry.el.classList.toggle("is-active", entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
       });
 
-      /* 카드별 흐름 모션 + hover lerp */
+      /* 카드별 흐름 효과 (위치 이동 없이 순수 시각 효과만) */
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
 
-        /* centerY: wrap의 ivTop 기준 top + colTranslate + 카드 offsetTop + 높이/2 */
-        const centerY = itemWrapTop + colTranslate + entry.topAbs + entry.height * 0.5;
-        const visT = (centerY / iViewH) * 2.0 - 1.0;
+        /* 카드 중심의 화면 Y 위치: wrap 기준 topAbs + wrapTranslateY + 높이/2 */
+        const cardScreenY = entry.topAbs + wrapTranslateY + itemWrapTop + entry.height * 0.5;
+        const visT = (cardScreenY / iViewH) * 2.0 - 1.0;
 
-        /* hover scale lerp — 항상 먼저 실행 */
+        /* hover scale */
         const isHovered = (entry.dataIndex === iActiveIdx);
-        const hsTarget = isHovered ? 1 : 0;
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (hsTarget - (itemHoverScales[idx] || 0)) * 0.12;
+        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + ((isHovered ? 1 : 0) - (itemHoverScales[idx] || 0)) * 0.12;
         const hs = itemHoverScales[idx];
 
-        if(visT < -1.6 || visT > 1.6){
-          if(hs < 0.002){
-            card.style.transform = "";
-          } else {
-            card.style.transform = "scale(" + (1 + hs * 0.12).toFixed(4) + ")";
-          }
+        /* 화면 밖 카드는 효과 스킵 */
+        if(visT < -1.8 || visT > 1.8){
+          card.style.transform = hs > 0.002 ? "scale(" + (1 + hs * 0.12).toFixed(4) + ")" : "";
           return;
         }
 
-        const normalized = Math.max(-1, Math.min(1, visT));
-        const depth = Math.abs(normalized);
-        const colPhase = entry.colIdx - ((NCOLS - 1) * 0.5);
-        const lift      = -depth * 10 - hs * 8;
-        const driftX    = colPhase * 3 + flowDrift * 0.22;
-        const driftY    = normalized * -6;
-        const rotX      = (normalized * -5) + (flowTilt * 0.45);
-        const rotZ      = (colPhase * 0.55) + (flowTilt * 0.18);
-        const baseScale = 1 - depth * 0.025;
-        const finalScale = baseScale + hs * 0.12;
+        const normalized  = Math.max(-1, Math.min(1, visT));
+        const depth       = Math.abs(normalized);
+        const colPhase    = entry.colIdx - ((NCOLS - 1) * 0.5);
+        const lift        = -depth * 10 - hs * 8;
+        const driftX      = colPhase * 3 + flowDrift * 0.22;
+        const driftY      = normalized * -6;
+        const rotX        = (normalized * -5) + (flowTilt * 0.45);
+        const rotZ        = (colPhase * 0.55) + (flowTilt * 0.18);
+        const finalScale  = (1 - depth * 0.025) + hs * 0.12;
+
         card.style.transform =
-          "perspective(520px) translate3d("+driftX+"px,"+(lift+driftY)+"px,0) rotateX("+rotX+"deg) rotateZ("+rotZ+"deg) scale("+finalScale.toFixed(4)+")";
+          "perspective(520px) translate3d(" + driftX + "px," + (lift + driftY) + "px,0)" +
+          " rotateX(" + rotX + "deg) rotateZ(" + rotZ + "deg) scale(" + finalScale.toFixed(4) + ")";
       });
 
       iRafId = requestAnimationFrame(renderItemView);
@@ -1715,6 +1703,8 @@
     }
     function stopItemRaf(){
       if(iRafId){ cancelAnimationFrame(iRafId); iRafId=null; }
+      const wrap = document.getElementById("itemWrap");
+      if(wrap) wrap.style.transform = "";
     }
 
     function updateItemHover(cx, cy){
