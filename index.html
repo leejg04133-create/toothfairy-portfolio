@@ -778,30 +778,87 @@
     @media (max-width: 1080px) {
       .shell {
         grid-template-columns: 1fr;
-        height: calc(100vh - 48px);
-        min-height: calc(100vh - 48px);
-        align-items: start;
+        width: 100%;
+        height: 100vh;
+        min-height: 100vh;
+        margin: 0;
+        gap: 0;
+        align-items: stretch;
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
+        scroll-snap-type: y mandatory;
+        scroll-behavior: smooth;
       }
 
       .intro {
         position: relative;
         top: 0;
-        min-height: calc(100vh - 48px);
-        height: auto;
+        min-height: 100vh;
+        height: 100vh;
+        padding: 24px 22px 20px;
+        border-radius: 0;
         justify-content: flex-start;
-        overflow: visible;
+        overflow: hidden;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+      }
+
+      .intro-top {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+      }
+
+      .intro-bottom {
+        display: none;
+      }
+
+      .eyebrow {
+        margin-bottom: 16px;
+      }
+
+      .intro h1 {
+        margin-bottom: 12px;
+        font-size: clamp(36px, 10vw, 54px);
+      }
+
+      .intro p {
+        max-width: none;
+        font-size: 14px;
+        line-height: 1.62;
+      }
+
+      .intro-copy {
+        gap: 12px;
+      }
+
+      .meta-list {
+        margin-top: 18px;
+        padding-top: 18px;
+        gap: 10px;
+      }
+
+      .meta-item {
+        font-size: 13px;
+      }
+
+      .cta-group {
+        margin-top: auto;
+        padding-top: 18px;
+        justify-content: flex-start;
       }
 
       .gallery-wrap {
         position: relative;
         top: 0;
-        min-height: calc(100vh - 48px);
-        height: calc(100vh - 48px);
+        min-height: 100vh;
+        height: 100vh;
         flex-shrink: 0;
+        border-radius: 0;
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
       }
 
       .gallery-body {
@@ -816,6 +873,9 @@
 
       .gallery-head {
         justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 18px 20px 14px;
       }
 
       .item-masonry-wrap {
@@ -825,18 +885,42 @@
 
     @media (max-width: 640px) {
       .shell {
-        width: min(100% - 24px, 1480px);
-        margin: 12px auto 24px;
-        gap: 16px;
+        width: 100%;
+        margin: 0;
+        gap: 0;
       }
 
       .intro,
       .card {
-        border-radius: 20px;
+        border-radius: 0;
       }
 
       .intro {
-        padding: 24px;
+        padding: 18px 16px 16px;
+      }
+
+      .eyebrow {
+        margin-bottom: 12px;
+        padding: 8px 12px;
+      }
+
+      .intro h1 {
+        font-size: clamp(32px, 10vw, 46px);
+      }
+
+      .intro p {
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .meta-list {
+        margin-top: 14px;
+        padding-top: 14px;
+        gap: 8px;
+      }
+
+      .meta-item {
+        font-size: 12px;
       }
 
       .gallery {
@@ -845,16 +929,16 @@
       }
 
       .gallery-head {
-        padding: 20px 20px 16px;
+        padding: 16px 16px 12px;
       }
 
       .link-group {
         justify-content: flex-start;
-        gap: 16px;
+        gap: 12px;
       }
 
       .text-link {
-        font-size: 24px;
+        font-size: 18px;
       }
 
       .gallery-scroll {
@@ -862,8 +946,8 @@
       }
 
       .gallery-wrap {
-        min-height: calc(100vh - 24px);
-        height: calc(100vh - 24px);
+        min-height: 100vh;
+        height: 100vh;
       }
 
       .item-masonry-wrap {
@@ -1890,6 +1974,7 @@
     const bgView   = document.getElementById("bgView");
     const itemView = document.getElementById("itemView");
     const galleryWrap = document.getElementById("gallery");
+    const shellRoot = document.querySelector(".shell");
     let curView = "bg";
 
     function syncCurrentViewLayout(options = {}) {
@@ -1926,31 +2011,34 @@
 
     function setMobileGalleryState(isActive) {
       document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      if (shellRoot) {
+        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+      }
       if (isActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
     }
 
-    function initMobileGalleryObserver() {
-      if (!galleryWrap) return;
-      if (galleryVisibilityObserver) galleryVisibilityObserver.disconnect();
-      if (!("IntersectionObserver" in window)) {
-        const rect = galleryWrap.getBoundingClientRect();
-        const vh = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
-        setMobileGalleryState(rect.top < vh * 0.85 && rect.bottom > vh * 0.2);
+    function updateMobileSnapState() {
+      if (!shellRoot || !galleryWrap) return;
+      if (!isMobileLayout()) {
+        setMobileGalleryState(false);
         return;
       }
 
-      galleryVisibilityObserver = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => {
-          if (entry.target !== galleryWrap) return;
-          setMobileGalleryState(entry.isIntersecting && entry.intersectionRatio > 0.18);
-        });
-      }, {
-        threshold: [0, 0.18, 0.4, 0.75]
-      });
+      const shellHeight = Math.max(1, shellRoot.clientHeight);
+      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.5;
+      setMobileGalleryState(isGalleryPage);
+    }
 
-      galleryVisibilityObserver.observe(galleryWrap);
+    function initMobileGalleryObserver() {
+      if (!shellRoot) return;
+      if (galleryVisibilityObserver) {
+        shellRoot.removeEventListener("scroll", galleryVisibilityObserver);
+      }
+      galleryVisibilityObserver = updateMobileSnapState;
+      shellRoot.addEventListener("scroll", galleryVisibilityObserver, { passive: true });
+      updateMobileSnapState();
     }
 
     function switchView(v){
@@ -1977,6 +2065,7 @@
 
     function handleViewportChange() {
       scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
+      updateMobileSnapState();
     }
 
     window.addEventListener("resize", handleViewportChange);
