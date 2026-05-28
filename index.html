@@ -1421,6 +1421,32 @@
       return ((value % span) + span) % span;
     }
 
+    function getBgLerpFactor() {
+      return isMobileLayout() ? 0.42 : 0.18;
+    }
+
+    function getItemLerpFactor() {
+      return isMobileLayout() ? 0.4 : 0.18;
+    }
+
+    function getDragVelocityFactor() {
+      return isMobileLayout() ? 0.32 : 1.8;
+    }
+
+    function getWheelVelocityFactor() {
+      return isMobileLayout() ? 0.18 : 0.7;
+    }
+
+    function syncBgScrollPosition(nextScrollTop) {
+      scrollTop = nextScrollTop;
+      targetScrollTop = nextScrollTop;
+    }
+
+    function syncItemScrollPosition(nextScrollTop) {
+      iScrollTop = nextScrollTop;
+      iTargetScroll = nextScrollTop;
+    }
+
     function buildGallery() {
       galleryList.innerHTML = "";
       slitElements.length = 0;
@@ -1560,8 +1586,8 @@
     const slitHoverScales = [];   /* 각 dataIndex 별 현재 hover scale (0~1) */
 
     function render() {
-      scrollTop += (targetScrollTop - scrollTop) * 0.18;
-      scrollVelocity *= 0.9;
+      scrollTop += (targetScrollTop - scrollTop) * getBgLerpFactor();
+      scrollVelocity *= isMobileLayout() ? 0.82 : 0.9;
       const loopSpan = portfolioItems.length * slitPitch;
       bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
@@ -1855,8 +1881,8 @@
     const itemHoverScales = [];
 
     function renderItemView(){
-      iScrollTop += (iTargetScroll - iScrollTop) * 0.18;
-      iScrollVel *= 0.9;
+      iScrollTop += (iTargetScroll - iScrollTop) * getItemLerpFactor();
+      iScrollVel *= isMobileLayout() ? 0.82 : 0.9;
 
       const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
@@ -1959,7 +1985,7 @@
       iv.addEventListener("wheel", e=>{
         e.preventDefault();
         iTargetScroll += e.deltaY;
-        iScrollVel += e.deltaY * 0.7;
+        iScrollVel += e.deltaY * getWheelVelocityFactor();
       },{passive:false});
 
       iv.addEventListener("pointerdown", e=>{
@@ -1981,8 +2007,13 @@
         if(Math.abs(dy)>3){ iPtrMoved=true; iDragging=true; }
         if(iDragging){
           e.preventDefault();
-          iTargetScroll = iDragScroll0 - dy;
-          iScrollVel += (iLastY - e.clientY)*1.8;
+          const nextScroll = iDragScroll0 - dy;
+          if (isMobileLayout()) {
+            syncItemScrollPosition(nextScroll);
+          } else {
+            iTargetScroll = nextScroll;
+          }
+          iScrollVel = (iLastY - e.clientY) * getDragVelocityFactor();
           iLastY = e.clientY;
         } else {
           updateItemHover(e.clientX, e.clientY);
@@ -2137,7 +2168,7 @@
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
       targetScrollTop += e.deltaY;
-      scrollVelocity += e.deltaY * 0.7;
+      scrollVelocity += e.deltaY * getWheelVelocityFactor();
     }, { passive: false });
 
     galleryStage.addEventListener("pointerdown", (e) => {
@@ -2166,8 +2197,13 @@
 
       if (isDragging) {
         e.preventDefault();
-        targetScrollTop = dragOriginScroll - dy;
-        scrollVelocity += (lastPointerY - e.clientY) * 1.8;
+        const nextScroll = dragOriginScroll - dy;
+        if (isMobileLayout()) {
+          syncBgScrollPosition(nextScroll);
+        } else {
+          targetScrollTop = nextScroll;
+        }
+        scrollVelocity = (lastPointerY - e.clientY) * getDragVelocityFactor();
         lastPointerY = e.clientY;
       }
     });
