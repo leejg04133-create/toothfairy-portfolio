@@ -776,6 +776,16 @@
     }
 
     @media (max-width: 1080px) {
+      .view-toggle {
+        padding: 2px;
+      }
+
+      .toggle-btn {
+        font-size: 11px;
+        letter-spacing: 0;
+        padding: 5px 12px;
+      }
+
       .shell {
         grid-template-columns: 1fr;
         width: 100%;
@@ -874,8 +884,8 @@
       .gallery-head {
         justify-content: space-between;
         flex-wrap: nowrap;
-        gap: 10px;
-        padding: 18px 20px 14px;
+        gap: 8px;
+        padding: 16px 16px 12px;
       }
 
       .link-group {
@@ -883,12 +893,14 @@
         min-width: 0;
         flex-wrap: nowrap;
         justify-content: flex-end;
-        gap: 10px;
+        gap: 8px;
+        overflow: hidden;
       }
 
       .text-link {
-        font-size: clamp(13px, 2.4vw, 16px);
-        letter-spacing: -0.03em;
+        flex: 0 0 auto;
+        font-size: clamp(10px, 1.9vw, 13px);
+        letter-spacing: -0.05em;
       }
 
       .item-masonry-wrap {
@@ -897,6 +909,15 @@
     }
 
     @media (max-width: 640px) {
+      .view-toggle {
+        padding: 2px;
+      }
+
+      .toggle-btn {
+        font-size: 10px;
+        padding: 5px 10px;
+      }
+
       .shell {
         width: 100%;
         margin: 0;
@@ -942,18 +963,18 @@
       }
 
       .gallery-head {
-        padding: 16px 16px 12px;
-        gap: 8px;
+        padding: 14px 12px 10px;
+        gap: 6px;
       }
 
       .link-group {
         justify-content: flex-end;
-        gap: 8px;
+        gap: 6px;
       }
 
       .text-link {
-        font-size: clamp(11px, 3vw, 13px);
-        letter-spacing: -0.04em;
+        font-size: clamp(9px, 2.6vw, 11px);
+        letter-spacing: -0.06em;
       }
 
       .gallery-scroll {
