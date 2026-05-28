@@ -1593,9 +1593,12 @@
           firstCycleBottoms[entry.colIdx] = Math.max(firstCycleBottoms[entry.colIdx], entry.topAbs + entry.height);
         }
       });
-      const maxHeight = Math.max(1, ...firstCycleBottoms.map(h => h + 8));
-      itemColLoopHeights.fill(maxHeight);
-      itemLoopSpan = maxHeight;
+      /* 컬럼마다 자기 자신의 높이로 루프 — 랜덤 배치로 높이가 달라도 항상 스크롤 가능 */
+      for(let c = 0; c < NCOLS; c++){
+        itemColLoopHeights[c] = Math.max(1, firstCycleBottoms[c] + 8);
+      }
+      /* 전체 루프 기준은 최소 컬럼 높이로 — 어떤 컬럼도 빈 구간 없이 채워짐 */
+      itemLoopSpan = Math.max(1, Math.min(...itemColLoopHeights));
     }
 
     /* ── 스크롤 상태 ── */
@@ -1622,10 +1625,14 @@
       const flowTilt = Math.max(-7, Math.min(7, iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
-      const colTranslate = -(itemLoopSpan + wrappedScroll); /* 컬럼에 적용되는 실제 translateY */
 
-      itemCols.forEach((col) => {
-        if (col) col.style.transform = "translate3d(0," + colTranslate + "px,0)";
+      /* 컬럼마다 자기 높이 기준으로 루프 — 랜덤 배치로 높이가 달라도 빈 구간 없음 */
+      const colTranslates = itemCols.map((col, c) => {
+        const loopH = itemColLoopHeights[c] || itemLoopSpan;
+        const colWrapped = positiveModulo(iScrollTop, loopH);
+        const t = -(loopH + colWrapped);
+        if (col) col.style.transform = "translate3d(0," + t + "px,0)";
+        return t;
       });
 
       /* is-active 업데이트 */
@@ -1637,8 +1644,8 @@
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
 
-        /* centerY: wrap의 ivTop 기준 top + colTranslate + 카드 offsetTop + 높이/2 */
-        const centerY = itemWrapTop + colTranslate + entry.topAbs + entry.height * 0.5;
+        /* centerY: wrap의 ivTop 기준 top + 컬럼별 translate + 카드 offsetTop + 높이/2 */
+        const centerY = itemWrapTop + colTranslates[entry.colIdx] + entry.topAbs + entry.height * 0.5;
         const visT = (centerY / iViewH) * 2.0 - 1.0;
 
         /* hover scale lerp — 항상 먼저 실행 */
