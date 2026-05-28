@@ -1504,7 +1504,7 @@
     */
     const itemRegistry = [];   /* { el, colIdx, topAbs, height } */
     const NCOLS = 6;
-    const ITEM_LOOP_COPIES = 3;
+    let ITEM_LOOP_COPIES = 3;  /* 동적으로 조정 가능하도록 let으로 변경 */
     const ITEM_WRAP_TOP_PAD = 28;
     const itemColLoopHeights = Array.from({ length: NCOLS }, () => 1);
     const itemCols = Array.from({ length: NCOLS }, (_, idx) => document.getElementById("ic" + idx));
@@ -1530,6 +1530,21 @@
       shuffled.forEach((item, i) => {
         baseColumns[i % NCOLS].push({ ...item, orderIndex: i });
       });
+
+      /* loopSpan이 viewport 높이의 최소 2.5배가 되도록 copies 수 결정
+         → 어떤 상황에서도 리셋 순간 화면에 빈 구간이 생기지 않음 */
+      const iv = document.getElementById("itemView");
+      const viewH = iv ? Math.max(1, iv.clientHeight) : 800;
+
+      /* 플레이스홀더 기준 1세트 예상 높이 추정 (실제 측정 전 근사치) */
+      const colW = iv ? (iv.clientWidth - 48 - 8*5) / NCOLS : 120;
+      const estColH = baseColumns.reduce((maxH, items, c) => {
+        const ratios = ITEM_COL_RATIOS[c];
+        const colH = items.reduce((h, _, i) => h + colW * ratios[i % ratios.length] + 8, 0);
+        return Math.max(maxH, colH);
+      }, 0);
+      /* 필요한 copies = ceil(viewH * 2.5 / estColH) + 1, 최소 3 */
+      ITEM_LOOP_COPIES = Math.max(3, Math.ceil((viewH * 2.5) / Math.max(1, estColH)) + 1);
 
       for(let c=0;c<NCOLS;c++){
         const col = itemCols[c];
@@ -1612,6 +1627,19 @@
       /* loopSpan = copy 1세트 높이. 컬럼별 차이 없이 wrap 전체 기준이므로 항상 정확 */
       itemLoopSpan = maxBottom + 20;
       itemColLoopHeights.fill(itemLoopSpan);
+
+      /* loopSpan이 viewport 2배 미만이면 copies가 부족 → rebuild */
+      const iv2 = document.getElementById("itemView");
+      const viewH2 = iv2 ? Math.max(1, iv2.clientHeight) : 800;
+      const neededCopies = Math.max(3, Math.ceil((viewH2 * 2.5) / Math.max(1, itemLoopSpan)) + 1);
+      if(neededCopies > ITEM_LOOP_COPIES){
+        ITEM_LOOP_COPIES = neededCopies;
+        /* 다음 프레임에서 rebuild (측정 루프 재진입 방지) */
+        requestAnimationFrame(() => {
+          buildItemView();
+          requestAnimationFrame(() => { measureItemCards(); });
+        });
+      }
     }
 
     /* ── 스크롤 상태 ── */
@@ -1647,6 +1675,11 @@
          wrappedScroll이 loopSpan에 도달하면 다시 0으로 돌아가면서
          copy0이 copy3 역할을 하는 seamless 루프 완성 */
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
+      /* wrapTranslateY: copy1(두번째 세트)이 wrappedScroll=0일때 화면 상단에 오도록
+         copy1 domY = loopSpan (copy0 다음)
+         원하는 copy1 화면Y = -wrappedScroll (0이면 상단, 증가하면 위로 올라감)
+         wrapTranslateY + loopSpan = -wrappedScroll
+         wrapTranslateY = -loopSpan - wrappedScroll */
       const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
 
       const wrap = document.getElementById("itemWrap");
