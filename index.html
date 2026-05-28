@@ -259,7 +259,7 @@
       position: absolute;
       top: 0; left: 0; right: 0;
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(var(--item-cols, 6), minmax(0, 1fr));
       gap: 8px;
       padding: 28px 24px 60px;
       align-items: start;
@@ -272,6 +272,8 @@
       will-change: transform;
     }
     .item-card {
+      position: relative;
+      display: block;
       border-radius: 10px;
       overflow: hidden;
       background: #181818;
@@ -284,9 +286,12 @@
       z-index: 2;
     }
     .item-card img {
+      position: absolute;
+      inset: 0;
       width: 100%;
-      height: auto;
+      height: 100%;
       display: block;
+      object-fit: cover;
       filter: grayscale(1) saturate(0.72) brightness(0.92);
       transition: filter 180ms ease, opacity 180ms ease;
       user-select: none;
@@ -298,7 +303,10 @@
       filter: grayscale(0) saturate(1) brightness(1);
     }
     .item-card-ph {
+      position: absolute;
+      inset: 0;
       width: 100%;
+      height: 100%;
       background: linear-gradient(180deg,#202020 0%,#161616 100%);
       display: flex;
       align-items: center;
@@ -768,38 +776,53 @@
     }
 
     @media (max-width: 1080px) {
+      html,
+      body {
+        height: auto;
+        min-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
       .shell {
         grid-template-columns: 1fr;
+        height: auto;
+        min-height: calc(100dvh - 48px);
+        align-items: start;
       }
 
       .intro {
         position: relative;
         top: 0;
-        min-height: auto;
+        min-height: calc(100dvh - 48px);
         height: auto;
+        justify-content: flex-start;
+        overflow: visible;
       }
 
       .gallery-wrap {
         position: relative;
         top: 0;
-        height: auto;
+        min-height: calc(100dvh - 48px);
+        height: calc(100dvh - 48px);
       }
 
       .gallery-body {
-        overflow: visible;
-      }
-
-      .gallery-body::before {
-        display: none;
+        min-height: 0;
+        overflow: hidden;
       }
 
       .gallery-scroll {
-        height: auto;
-        overflow: visible;
+        height: 100%;
+        overflow: hidden;
       }
 
       .gallery-head {
         justify-content: flex-start;
+      }
+
+      .item-masonry-wrap {
+        padding: 24px 20px 48px;
       }
     }
 
@@ -839,6 +862,16 @@
 
       .gallery-scroll {
         padding: 16px;
+      }
+
+      .gallery-wrap {
+        min-height: calc(100dvh - 24px);
+        height: calc(100dvh - 24px);
+      }
+
+      .item-masonry-wrap {
+        gap: 6px;
+        padding: 18px 16px 36px;
       }
 
       .overlay {
@@ -1503,17 +1536,56 @@
        topAbs = 카드의 item-col 내부 offsetTop (스크롤 독립적인 절대값)
     */
     const itemRegistry = [];   /* { el, colIdx, topAbs, height } */
-    const NCOLS = 6;
+    const MAX_ITEM_COLS = 6;
+    const MOBILE_LAYOUT_BREAKPOINT = 1080;
+    const MOBILE_ITEM_TWO_COL_BREAKPOINT = 720;
     let ITEM_LOOP_COPIES = 3;  /* 동적으로 조정 가능하도록 let으로 변경 */
     const ITEM_WRAP_TOP_PAD = 28;
-    const itemColLoopHeights = Array.from({ length: NCOLS }, () => 1);
-    const itemCols = Array.from({ length: NCOLS }, (_, idx) => document.getElementById("ic" + idx));
+    const itemColLoopHeights = Array.from({ length: MAX_ITEM_COLS }, () => 1);
+    const itemCols = Array.from({ length: MAX_ITEM_COLS }, (_, idx) => document.getElementById("ic" + idx));
     let itemLoopSpan = 1;
+    let activeItemColCount = MAX_ITEM_COLS;
+    let itemMeasureRafId = null;
+    let viewSyncRafId = null;
+    let galleryVisibilityObserver = null;
+
+    function isMobileLayout() {
+      return Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0) <= MOBILE_LAYOUT_BREAKPOINT;
+    }
+
+    function getItemColumnCount() {
+      const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
+      if (width <= MOBILE_ITEM_TWO_COL_BREAKPOINT) return 2;
+      if (width <= MOBILE_LAYOUT_BREAKPOINT) return 3;
+      return MAX_ITEM_COLS;
+    }
+
+    function applyItemColumnLayout() {
+      const wrap = document.getElementById("itemWrap");
+      activeItemColCount = getItemColumnCount();
+      if (wrap) wrap.style.setProperty("--item-cols", String(activeItemColCount));
+      itemCols.forEach((col, idx) => {
+        if (!col) return;
+        col.style.display = idx < activeItemColCount ? "flex" : "none";
+      });
+      return activeItemColCount;
+    }
+
+    function scheduleItemLayoutRefresh(){
+      if(curView !== "item") return;
+      if(itemMeasureRafId) cancelAnimationFrame(itemMeasureRafId);
+      itemMeasureRafId = requestAnimationFrame(() => {
+        itemMeasureRafId = null;
+        resizeItemView();
+        measureItemCards();
+      });
+    }
 
     function buildItemView(){
       itemRegistry.length = 0;
       itemColLoopHeights.fill(1);
-      for(let c=0;c<NCOLS;c++){
+      const nCols = applyItemColumnLayout();
+      for(let c=0;c<MAX_ITEM_COLS;c++){
         const col = itemCols[c];
         col.innerHTML = "";
         col.style.minHeight = "";
@@ -1526,9 +1598,9 @@
         itemShuffleOrder = shuffleArr(itemImages.map((_, idx) => idx));
       }
       const shuffled = itemShuffleOrder.map((idx) => itemImages[idx]).filter(Boolean);
-      const baseColumns = Array.from({ length: NCOLS }, () => []);
+      const baseColumns = Array.from({ length: nCols }, () => []);
       shuffled.forEach((item, i) => {
-        baseColumns[i % NCOLS].push({ ...item, orderIndex: i });
+        baseColumns[i % nCols].push({ ...item, orderIndex: i });
       });
 
       /* loopSpan이 viewport 높이의 최소 2.5배가 되도록 copies 수 결정
@@ -1537,16 +1609,18 @@
       const viewH = iv ? Math.max(1, iv.clientHeight) : 800;
 
       /* 플레이스홀더 기준 1세트 예상 높이 추정 (실제 측정 전 근사치) */
-      const colW = iv ? (iv.clientWidth - 48 - 8*5) / NCOLS : 120;
+      const colGap = window.innerWidth <= 640 ? 6 : 8;
+      const wrapPadX = window.innerWidth <= 640 ? 32 : (isMobileLayout() ? 40 : 48);
+      const colW = iv ? (iv.clientWidth - wrapPadX - colGap * Math.max(0, nCols - 1)) / nCols : 120;
       const estColH = baseColumns.reduce((maxH, items, c) => {
         const ratios = ITEM_COL_RATIOS[c];
-        const colH = items.reduce((h, _, i) => h + colW * ratios[i % ratios.length] + 8, 0);
+        const colH = items.reduce((h, _, i) => h + colW * ratios[i % ratios.length] + colGap, 0);
         return Math.max(maxH, colH);
       }, 0);
       /* 필요한 copies = ceil(viewH * 2.5 / estColH) + 1, 최소 3 */
       ITEM_LOOP_COPIES = Math.max(3, Math.ceil((viewH * 2.5) / Math.max(1, estColH)) + 1);
 
-      for(let c=0;c<NCOLS;c++){
+      for(let c=0;c<nCols;c++){
         const col = itemCols[c];
         const baseItems = baseColumns[c];
         for(let copy=0; copy<ITEM_LOOP_COPIES; copy+=1){
@@ -1556,11 +1630,14 @@
             card.className = "item-card";
             const ratios = ITEM_COL_RATIOS[c];
             const ratio  = ratios[localIdx % ratios.length];
+            card.style.aspectRatio = "1 / " + ratio;
             const src    = resolveAssetSrc(item.src);
             if(src){
               const img = document.createElement("img");
               img.src=src; img.alt=item.label||"";
               img.loading="lazy"; img.draggable=false;
+              img.decoding="async";
+              img.onload=()=>{ scheduleItemLayoutRefresh(); };
               img.onerror=()=>{ card.innerHTML=""; addItemPh(card,item.label,ratio); };
               card.appendChild(img);
             } else {
@@ -1589,7 +1666,6 @@
     function addItemPh(card, label, ratio){
       const ph = document.createElement("div");
       ph.className = "item-card-ph";
-      ph.style.aspectRatio = "1 / "+ratio;
       ph.textContent = label||"—";
       card.appendChild(ph);
     }
@@ -1652,6 +1728,7 @@
     function resizeItemView(){
       const iv = document.getElementById("itemView");
       if(!iv) return;
+      applyItemColumnLayout();
       iViewH = Math.max(1, iv.clientHeight);
       iMaxScroll = Math.max(1, itemLoopSpan);
     }
@@ -1714,7 +1791,7 @@
 
         const normalized  = Math.max(-1, Math.min(1, visT));
         const depth       = Math.abs(normalized);
-        const colPhase    = entry.colIdx - ((NCOLS - 1) * 0.5);
+        const colPhase    = entry.colIdx - ((activeItemColCount - 1) * 0.5);
         const lift        = -depth * 10 - hs * 8;
         const driftX      = colPhase * 3 + flowDrift * 0.22;
         const driftY      = normalized * -6;
@@ -1736,6 +1813,7 @@
     }
     function stopItemRaf(){
       if(iRafId){ cancelAnimationFrame(iRafId); iRafId=null; }
+      if(itemMeasureRafId){ cancelAnimationFrame(itemMeasureRafId); itemMeasureRafId=null; }
       const wrap = document.getElementById("itemWrap");
       if(wrap) wrap.style.transform = "";
     }
@@ -1814,7 +1892,69 @@
     /* ── 뷰 전환 ── */
     const bgView   = document.getElementById("bgView");
     const itemView = document.getElementById("itemView");
+    const galleryWrap = document.getElementById("gallery");
     let curView = "bg";
+
+    function syncCurrentViewLayout(options = {}) {
+      const { rebuildItemView = false, restartItemRaf = false } = options;
+      resizeGallery();
+      if (curView !== "item") return;
+
+      const nextColCount = getItemColumnCount();
+      if (rebuildItemView || nextColCount !== activeItemColCount || itemRegistry.length === 0) {
+        buildItemView();
+      } else {
+        applyItemColumnLayout();
+      }
+
+      resizeItemView();
+      requestAnimationFrame(() => {
+        measureItemCards();
+        if (restartItemRaf || !iRafId) startItemRaf();
+      });
+    }
+
+    function scheduleCurrentViewLayout(options = {}) {
+      const { rebuildItemView = false, restartItemRaf = false } = options;
+      if (viewSyncRafId) cancelAnimationFrame(viewSyncRafId);
+      viewSyncRafId = requestAnimationFrame(() => {
+        viewSyncRafId = null;
+        if (isMobileLayout()) {
+          requestAnimationFrame(() => syncCurrentViewLayout({ rebuildItemView, restartItemRaf }));
+          return;
+        }
+        syncCurrentViewLayout({ rebuildItemView, restartItemRaf });
+      });
+    }
+
+    function setMobileGalleryState(isActive) {
+      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      if (isActive) {
+        scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
+      }
+    }
+
+    function initMobileGalleryObserver() {
+      if (!galleryWrap) return;
+      if (galleryVisibilityObserver) galleryVisibilityObserver.disconnect();
+      if (!("IntersectionObserver" in window)) {
+        const rect = galleryWrap.getBoundingClientRect();
+        const vh = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+        setMobileGalleryState(rect.top < vh * 0.85 && rect.bottom > vh * 0.2);
+        return;
+      }
+
+      galleryVisibilityObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.target !== galleryWrap) return;
+          setMobileGalleryState(entry.isIntersecting && entry.intersectionRatio > 0.18);
+        });
+      }, {
+        threshold: [0, 0.18, 0.4, 0.75]
+      });
+
+      galleryVisibilityObserver.observe(galleryWrap);
+    }
 
     function switchView(v){
       if(v===curView) return;
@@ -1824,33 +1964,36 @@
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
         itemView.style.display = "block";
-        /* 빌드 → 2프레임 대기 → 측정 → RAF 시작 (DOM 렌더 완료 보장) */
-        buildItemView();
-        requestAnimationFrame(()=>{
-          resizeItemView();
-          requestAnimationFrame(()=>{
-            measureItemCards();
-            startItemRaf();
-          });
-        });
+        scheduleCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
         itemView.style.display = "none";
         stopItemRaf();
         bgView.style.display = "";
+        scheduleCurrentViewLayout();
       }
     }
 
     document.getElementById("btnBg").addEventListener("click",   ()=>switchView("bg"));
     document.getElementById("btnItem").addEventListener("click",  ()=>switchView("item"));
 
-    window.addEventListener("resize", ()=>{ if(curView==="item"){ resizeItemView(); measureItemCards(); } });
+    function handleViewportChange() {
+      scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
+    }
+
+    window.addEventListener("resize", handleViewportChange);
+    window.addEventListener("orientationchange", handleViewportChange);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+    }
 
     buildGallery();
-    resizeGallery();
+    applyItemColumnLayout();
+    scheduleCurrentViewLayout();
     startRender();
     syncMediaFromFolders();
+    initMobileGalleryObserver();
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
@@ -1914,8 +2057,6 @@
         document.body.classList.remove("dragging-gallery");
       }
     });
-
-    window.addEventListener("resize", resizeGallery);
 
     /* ── 확대 오버레이 닫기 ── */
     slitClose.addEventListener("click", () => slitOverlay.classList.remove("is-open"));
