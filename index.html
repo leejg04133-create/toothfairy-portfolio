@@ -1472,7 +1472,7 @@
             const img = document.createElement("img");
             img.src = resolvedSrc;
             img.alt = item.title;
-            img.loading = "eager";
+            img.loading = "lazy";
             img.decoding = "async";
             img.draggable = false;
             img.onerror = () => {
@@ -2120,7 +2120,7 @@
         if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
           scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
         }
-      }, 90);
+      }, 0);
     }
 
     function initMobileGalleryObserver() {
@@ -2173,9 +2173,15 @@
     buildGallery();
     applyItemColumnLayout();
     scheduleCurrentViewLayout();
-    startRender();
     syncMediaFromFolders();
     initMobileGalleryObserver();
+    
+    // Delay render start until after initial layout is complete
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        startRender();
+      });
+    });
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
