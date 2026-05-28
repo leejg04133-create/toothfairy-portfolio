@@ -789,7 +789,7 @@
         overscroll-behavior-y: contain;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: y mandatory;
-        scroll-behavior: smooth;
+        background: #111;
       }
 
       .intro {
@@ -872,10 +872,23 @@
       }
 
       .gallery-head {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        gap: 12px;
+        justify-content: space-between;
+        flex-wrap: nowrap;
+        gap: 10px;
         padding: 18px 20px 14px;
+      }
+
+      .link-group {
+        flex: 1;
+        min-width: 0;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .text-link {
+        font-size: clamp(13px, 2.4vw, 16px);
+        letter-spacing: -0.03em;
       }
 
       .item-masonry-wrap {
@@ -930,15 +943,17 @@
 
       .gallery-head {
         padding: 16px 16px 12px;
+        gap: 8px;
       }
 
       .link-group {
-        justify-content: flex-start;
-        gap: 12px;
+        justify-content: flex-end;
+        gap: 8px;
       }
 
       .text-link {
-        font-size: 18px;
+        font-size: clamp(11px, 3vw, 13px);
+        letter-spacing: -0.04em;
       }
 
       .gallery-scroll {
@@ -1629,6 +1644,7 @@
     let itemMeasureRafId = null;
     let viewSyncRafId = null;
     let galleryVisibilityObserver = null;
+    let mobileSnapTimeoutId = null;
 
     function isMobileLayout() {
       return Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0) <= MOBILE_LAYOUT_BREAKPOINT;
@@ -2031,12 +2047,27 @@
       setMobileGalleryState(isGalleryPage);
     }
 
+    function scheduleMobileSnapLayoutRefresh() {
+      if (!isMobileLayout() || !shellRoot) return;
+      if (mobileSnapTimeoutId) clearTimeout(mobileSnapTimeoutId);
+      mobileSnapTimeoutId = setTimeout(() => {
+        mobileSnapTimeoutId = null;
+        updateMobileSnapState();
+        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
+          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
+        }
+      }, 90);
+    }
+
     function initMobileGalleryObserver() {
       if (!shellRoot) return;
       if (galleryVisibilityObserver) {
         shellRoot.removeEventListener("scroll", galleryVisibilityObserver);
       }
-      galleryVisibilityObserver = updateMobileSnapState;
+      galleryVisibilityObserver = () => {
+        updateMobileSnapState();
+        scheduleMobileSnapLayoutRefresh();
+      };
       shellRoot.addEventListener("scroll", galleryVisibilityObserver, { passive: true });
       updateMobileSnapState();
     }
@@ -2066,6 +2097,7 @@
     function handleViewportChange() {
       scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       updateMobileSnapState();
+      scheduleMobileSnapLayoutRefresh();
     }
 
     window.addEventListener("resize", handleViewportChange);
