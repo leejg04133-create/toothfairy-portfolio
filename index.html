@@ -815,6 +815,16 @@
         scroll-snap-align: start;
         scroll-snap-stop: always;
       }
+      /* intro 하단 서브픽셀 흰 줄 차단 */
+      .intro::after {
+        content: "";
+        position: absolute;
+        bottom: -3px; left: 0; right: 0;
+        height: 6px;
+        background: #111;
+        z-index: 100;
+        pointer-events: none;
+      }
 
       .intro-top {
         display: flex;
@@ -2069,8 +2079,8 @@
     let curView = "bg";
 
     function syncCurrentViewLayout(options = {}) {
-      const { rebuildItemView = false, restartItemRaf = false } = options;
-      resizeGallery();
+      const { rebuildItemView = false, restartItemRaf = false, skipGalleryResize = false } = options;
+      if (!skipGalleryResize) resizeGallery();
       if (curView !== "item") return;
 
       const nextColCount = getItemColumnCount();
@@ -2107,7 +2117,8 @@
       if (shellRoot) shellRoot.classList.toggle("is-gallery-page", active);
       /* 상태가 바뀔 때만 레이아웃 업데이트 — 스냅 중 반복 리플로우 방지 */
       if (active && !prevGalleryActive) {
-        scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
+        /* skipGalleryResize:true — 갤러리 크기는 고정이므로 reflow 유발하는 resizeGallery 스킵 */
+        scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount, skipGalleryResize: true });
       }
       prevGalleryActive = active;
     }
@@ -2131,7 +2142,7 @@
         mobileSnapTimeoutId = null;
         updateMobileSnapState();
         if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
-          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
+          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0, skipGalleryResize: true });
         }
       }, 90);
     }
