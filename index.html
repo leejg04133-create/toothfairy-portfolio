@@ -802,8 +802,7 @@
         background: #111;
       }
 
-      /* 갤러리 페이지에 있을 때: shell 스냅 완전 비활성화
-         → 갤러리 터치가 페이지 스크롤로 오판되는 문제 방지 */
+      /* 갤러리 페이지 진입 시 shell snap 완전 비활성화 */
       .shell.is-gallery-page {
         scroll-snap-type: none;
         overflow-y: hidden;
@@ -2114,9 +2113,7 @@
       }
 
       const shellHeight = Math.max(1, shellRoot.clientHeight);
-      /* 0.3 기준: 갤러리 쪽으로 스냅 시작하면 즉시 snap 비활성화
-         → 스냅 완료 전에 갤러리를 터치해도 페이지 스크롤 안 일어남 */
-      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.3;
+      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.5;
       setMobileGalleryState(isGalleryPage);
     }
 
@@ -2194,13 +2191,13 @@
 
     galleryStage.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      e.preventDefault(); /* 즉시 브라우저 스크롤 판단 차단 → 첫 터치 버벅 제거 */
+      e.preventDefault();
       isDragging = false;
       pointerDown = true;
       pointerMoved = false;
       dragOriginY = e.clientY;
       lastPointerY = e.clientY;
-      dragOriginScroll = scrollTop;
+      dragOriginScroll = scrollTop;  /* 실제 렌더 위치 기준 — 점프 방지 */
       galleryStage.setPointerCapture(e.pointerId);
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
@@ -2227,8 +2224,6 @@
         }
         scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
         lastPointerY = e.clientY;
-      } else {
-        if (Math.abs(dy) > 1) e.preventDefault(); /* 판정 전도 세로 이동이면 즉시 차단 */
       }
     }, { passive: false });
 
