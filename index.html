@@ -414,6 +414,7 @@
       height: 100%;
       overflow: hidden;
       border-radius: 16px;
+      touch-action: none;
     }
 
     .gallery-stage > .gallery {
@@ -2089,16 +2090,14 @@
       });
     }
 
-    let _prevGalleryActive = false;
     function setMobileGalleryState(isActive) {
-      const active = Boolean(isActive) && isMobileLayout();
-      document.body.classList.toggle("mobile-gallery-active", active);
-      if (shellRoot) shellRoot.classList.toggle("is-gallery-page", active);
-      /* false→true 전환 시에만 1번 실행. 이미 active면 스킵 → 90ms 타임아웃 reflow 차단 */
-      if (active && !_prevGalleryActive) {
+      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      if (shellRoot) {
+        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+      }
+      if (isActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
-      _prevGalleryActive = active;
     }
 
     function updateMobileSnapState() {
@@ -2220,7 +2219,7 @@
         scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
         lastPointerY = e.clientY;
       }
-    });
+    }, { passive: false });
 
     function endPointer(e) {
       if (pointerDown && !pointerMoved && activeIndex >= 0) {
