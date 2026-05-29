@@ -802,6 +802,13 @@
         background: #111;
       }
 
+      /* 갤러리 페이지에 있을 때: shell 스냅 완전 비활성화
+         → 갤러리 터치가 페이지 스크롤로 오판되는 문제 방지 */
+      .shell.is-gallery-page {
+        scroll-snap-type: none;
+        overflow-y: hidden;
+      }
+
       .intro {
         position: relative;
         top: 0;
@@ -2002,14 +2009,13 @@
 
       iv.addEventListener("pointerdown", e=>{
         if(e.button!==0) return;
-        e.preventDefault(); /* 모바일: 즉시 브라우저 스크롤 차단 */
         iPtrDown=true; iPtrMoved=false; iDragging=false;
         iDragY0=e.clientY; iLastY=e.clientY;
-        iDragScroll0=iTargetScroll;
+        iDragScroll0=iTargetScroll;  /* lerp된 iScrollTop 대신 iTargetScroll 기준 */
         iv.setPointerCapture(e.pointerId);
         iv.classList.add("is-dragging");
         updateItemHover(e.clientX, e.clientY);
-      }, { passive: false });
+      });
 
       iv.addEventListener("pointermove", e=>{
         if(!iPtrDown){
@@ -2029,11 +2035,9 @@
           iScrollVel = ((iLastY - e.clientY) * getDragVelocityFactor()) + (iScrollVel * 0.18);
           iLastY = e.clientY;
         } else {
-          /* isDragging 판정 전에도 세로 이동이면 즉시 차단 */
-          if(Math.abs(dy) > 1) e.preventDefault();
           updateItemHover(e.clientX, e.clientY);
         }
-      }, { passive: false });
+      });
 
       function endPtr(e){
         if(!iPtrMoved && iActiveIdx >= 0){
@@ -2110,7 +2114,9 @@
       }
 
       const shellHeight = Math.max(1, shellRoot.clientHeight);
-      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.5;
+      /* 0.3 기준: 갤러리 쪽으로 스냅 시작하면 즉시 snap 비활성화
+         → 스냅 완료 전에 갤러리를 터치해도 페이지 스크롤 안 일어남 */
+      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.3;
       setMobileGalleryState(isGalleryPage);
     }
 
@@ -2120,8 +2126,6 @@
       mobileSnapTimeoutId = setTimeout(() => {
         mobileSnapTimeoutId = null;
         updateMobileSnapState();
-        /* 터치 드래그 중이면 레이아웃 리빌드 건너뜀 — 드래그 중 리빌드가 버벅거림 유발 */
-        if (pointerDown || iPtrDown) return;
         if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
           scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
         }
@@ -2190,7 +2194,7 @@
 
     galleryStage.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      e.preventDefault(); /* 모바일: pointerdown 즉시 preventDefault → 브라우저 스크롤 판단 대기 없앰 */
+      e.preventDefault(); /* 즉시 브라우저 스크롤 판단 차단 → 첫 터치 버벅 제거 */
       isDragging = false;
       pointerDown = true;
       pointerMoved = false;
@@ -2224,8 +2228,7 @@
         scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
         lastPointerY = e.clientY;
       } else {
-        /* 아직 isDragging 판정 전이어도 세로 이동이면 브라우저 스크롤 차단 */
-        if (Math.abs(dy) > 1) e.preventDefault();
+        if (Math.abs(dy) > 1) e.preventDefault(); /* 판정 전도 세로 이동이면 즉시 차단 */
       }
     }, { passive: false });
 
