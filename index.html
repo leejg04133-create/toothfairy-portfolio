@@ -259,7 +259,7 @@
       position: absolute;
       top: 0; left: 0; right: 0;
       display: grid;
-      grid-template-columns: repeat(var(--item-cols, 6), minmax(0, 1fr));
+      grid-template-columns: repeat(6, 1fr);
       gap: 8px;
       padding: 28px 24px 60px;
       align-items: start;
@@ -272,8 +272,6 @@
       will-change: transform;
     }
     .item-card {
-      position: relative;
-      display: block;
       border-radius: 10px;
       overflow: hidden;
       background: #181818;
@@ -286,12 +284,9 @@
       z-index: 2;
     }
     .item-card img {
-      position: absolute;
-      inset: 0;
       width: 100%;
-      height: 100%;
+      height: auto;
       display: block;
-      object-fit: cover;
       filter: grayscale(1) saturate(0.72) brightness(0.92);
       transition: filter 180ms ease, opacity 180ms ease;
       user-select: none;
@@ -303,10 +298,7 @@
       filter: grayscale(0) saturate(1) brightness(1);
     }
     .item-card-ph {
-      position: absolute;
-      inset: 0;
       width: 100%;
-      height: 100%;
       background: linear-gradient(180deg,#202020 0%,#161616 100%);
       display: flex;
       align-items: center;
@@ -776,185 +768,55 @@
     }
 
     @media (max-width: 1080px) {
-      .view-toggle {
-        padding: 2px;
-      }
-
-      .toggle-btn {
-        font-size: 11px;
-        letter-spacing: 0;
-        padding: 5px 12px;
-      }
-
       .shell {
         grid-template-columns: 1fr;
-        width: 100%;
-        height: 100dvh;
-        min-height: 100dvh;
-        margin: 0;
-        gap: 0;
-        align-items: stretch;
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior-y: contain;
-        -webkit-overflow-scrolling: touch;
-        scroll-snap-type: y mandatory;
-        background: #111;
       }
 
       .intro {
         position: relative;
         top: 0;
-        min-height: 100dvh;
-        height: 100dvh;
-        padding: 24px 22px 20px;
-        border-radius: 0;
-        justify-content: flex-start;
-        overflow: hidden;
-        scroll-snap-align: start;
-        scroll-snap-stop: always;
-      }
-
-      .intro-top {
-        display: flex;
-        flex-direction: column;
-        min-height: 100%;
-      }
-
-      .intro-bottom {
-        display: none;
-      }
-
-      .eyebrow {
-        margin-bottom: 16px;
-      }
-
-      .intro h1 {
-        margin-bottom: 12px;
-        font-size: clamp(36px, 10vw, 54px);
-      }
-
-      .intro p {
-        max-width: none;
-        font-size: 14px;
-        line-height: 1.62;
-      }
-
-      .intro-copy {
-        gap: 12px;
-      }
-
-      .meta-list {
-        margin-top: 18px;
-        padding-top: 18px;
-        gap: 10px;
-      }
-
-      .meta-item {
-        font-size: 13px;
-      }
-
-      .cta-group {
-        margin-top: auto;
-        padding-top: 18px;
-        justify-content: flex-start;
+        min-height: auto;
+        height: auto;
       }
 
       .gallery-wrap {
         position: relative;
         top: 0;
-        min-height: 100dvh;
-        height: 100dvh;
-        flex-shrink: 0;
-        border-radius: 0;
-        scroll-snap-align: start;
-        scroll-snap-stop: always;
+        height: auto;
       }
 
       .gallery-body {
-        min-height: 0;
-        overflow: hidden;
+        overflow: visible;
+      }
+
+      .gallery-body::before {
+        display: none;
       }
 
       .gallery-scroll {
-        height: 100%;
-        overflow: hidden;
+        height: auto;
+        overflow: visible;
       }
 
       .gallery-head {
-        justify-content: space-between;
-        flex-wrap: nowrap;
-        gap: 8px;
-        padding: 16px 16px 12px;
-      }
-
-      .link-group {
-        flex: 1;
-        min-width: 0;
-        flex-wrap: nowrap;
-        justify-content: flex-end;
-        gap: 8px;
-        overflow: hidden;
-      }
-
-      .text-link {
-        flex: 0 0 auto;
-        font-size: clamp(10px, 1.9vw, 13px);
-        letter-spacing: -0.05em;
-      }
-
-      .item-masonry-wrap {
-        padding: 24px 20px 48px;
+        justify-content: flex-start;
       }
     }
 
     @media (max-width: 640px) {
-      .view-toggle {
-        padding: 2px;
-      }
-
-      .toggle-btn {
-        font-size: 10px;
-        padding: 5px 10px;
-      }
-
       .shell {
-        width: 100%;
-        margin: 0;
-        gap: 0;
+        width: min(100% - 24px, 1480px);
+        margin: 12px auto 24px;
+        gap: 16px;
       }
 
       .intro,
       .card {
-        border-radius: 0;
+        border-radius: 20px;
       }
 
       .intro {
-        padding: 18px 16px 16px;
-      }
-
-      .eyebrow {
-        margin-bottom: 12px;
-        padding: 8px 12px;
-      }
-
-      .intro h1 {
-        font-size: clamp(32px, 10vw, 46px);
-      }
-
-      .intro p {
-        font-size: 13px;
-        line-height: 1.55;
-      }
-
-      .meta-list {
-        margin-top: 14px;
-        padding-top: 14px;
-        gap: 8px;
-      }
-
-      .meta-item {
-        font-size: 12px;
+        padding: 24px;
       }
 
       .gallery {
@@ -963,32 +825,20 @@
       }
 
       .gallery-head {
-        padding: 14px 12px 10px;
-        gap: 6px;
+        padding: 20px 20px 16px;
       }
 
       .link-group {
-        justify-content: flex-end;
-        gap: 6px;
+        justify-content: flex-start;
+        gap: 16px;
       }
 
       .text-link {
-        font-size: clamp(9px, 2.6vw, 11px);
-        letter-spacing: -0.06em;
+        font-size: 24px;
       }
 
       .gallery-scroll {
         padding: 16px;
-      }
-
-      .gallery-wrap {
-        min-height: 100vh;
-        height: 100vh;
-      }
-
-      .item-masonry-wrap {
-        gap: 6px;
-        padding: 18px 16px 36px;
       }
 
       .overlay {
@@ -1366,6 +1216,20 @@
                 measureItemCards();
               });
             }
+          } else {
+            /* GitHub API 결과 없으면 순차 탐색으로 fallback */
+            const fallbackItems = await discoverSequentialMedia("item", (index, src) => ({
+              src,
+              label: makeItemLabel(index - 1)
+            }));
+            if (fallbackItems.length > 0) {
+              itemImages = fallbackItems;
+              itemShuffleOrder = null;
+              if (curView === "item") {
+                buildItemView();
+                requestAnimationFrame(() => { resizeItemView(); measureItemCards(); });
+              }
+            }
           }
           return;
         }
@@ -1404,7 +1268,24 @@
           }
         }
       } catch (error) {
-        console.warn("[portfolio] media sync failed", error);
+        console.warn("[portfolio] media sync failed, retrying items", error);
+        /* GitHub API 실패 시 순차 탐색으로 소품 이미지 재시도 */
+        try {
+          const fallbackItems = await discoverSequentialMedia("item", (index, src) => ({
+            src,
+            label: makeItemLabel(index - 1)
+          }));
+          if (fallbackItems.length > 0) {
+            itemImages = fallbackItems;
+            itemShuffleOrder = null;
+            if (curView === "item") {
+              buildItemView();
+              requestAnimationFrame(() => { resizeItemView(); measureItemCards(); });
+            }
+          }
+        } catch (e2) {
+          console.warn("[portfolio] item fallback also failed", e2);
+        }
       }
     }
 
@@ -1419,36 +1300,6 @@
     function positiveModulo(value, span) {
       if (!span) return 0;
       return ((value % span) + span) % span;
-    }
-
-    function getBgLerpFactor() {
-      return isMobileLayout() ? 0.3 : 0.18;
-    }
-
-    function getItemLerpFactor() {
-      return isMobileLayout() ? 0.3 : 0.18;
-    }
-
-    function getDragVelocityFactor() {
-      return isMobileLayout() ? 0.95 : 1.8;
-    }
-
-    function getWheelVelocityFactor() {
-      return isMobileLayout() ? 0.55 : 0.7;
-    }
-
-    function getMomentumDecay() {
-      return isMobileLayout() ? 0.94 : 0.9;
-    }
-
-    function syncBgScrollPosition(nextScrollTop) {
-      scrollTop = nextScrollTop;
-      targetScrollTop = nextScrollTop;
-    }
-
-    function syncItemScrollPosition(nextScrollTop) {
-      iScrollTop = nextScrollTop;
-      iTargetScroll = nextScrollTop;
     }
 
     function buildGallery() {
@@ -1473,7 +1324,7 @@
             img.src = resolvedSrc;
             img.alt = item.title;
             img.loading = "eager";
-            img.decoding = "async";
+            img.decoding = "sync";
             img.draggable = false;
             img.onerror = () => {
               media.innerHTML = "";
@@ -1590,12 +1441,8 @@
     const slitHoverScales = [];   /* 각 dataIndex 별 현재 hover scale (0~1) */
 
     function render() {
-      if (!pointerDown && Math.abs(scrollVelocity) > 0.08) {
-        targetScrollTop += scrollVelocity;
-      }
-      scrollTop += (targetScrollTop - scrollTop) * getBgLerpFactor();
-      scrollVelocity *= getMomentumDecay();
-      if (Math.abs(scrollVelocity) < 0.02) scrollVelocity = 0;
+      scrollTop += (targetScrollTop - scrollTop) * 0.18;
+      scrollVelocity *= 0.9;
       const loopSpan = portfolioItems.length * slitPitch;
       bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
@@ -1687,57 +1534,17 @@
        topAbs = 카드의 item-col 내부 offsetTop (스크롤 독립적인 절대값)
     */
     const itemRegistry = [];   /* { el, colIdx, topAbs, height } */
-    const MAX_ITEM_COLS = 6;
-    const MOBILE_LAYOUT_BREAKPOINT = 1080;
-    const MOBILE_ITEM_TWO_COL_BREAKPOINT = 720;
+    const NCOLS = 6;
     let ITEM_LOOP_COPIES = 3;  /* 동적으로 조정 가능하도록 let으로 변경 */
     const ITEM_WRAP_TOP_PAD = 28;
-    const itemColLoopHeights = Array.from({ length: MAX_ITEM_COLS }, () => 1);
-    const itemCols = Array.from({ length: MAX_ITEM_COLS }, (_, idx) => document.getElementById("ic" + idx));
+    const itemColLoopHeights = Array.from({ length: NCOLS }, () => 1);
+    const itemCols = Array.from({ length: NCOLS }, (_, idx) => document.getElementById("ic" + idx));
     let itemLoopSpan = 1;
-    let activeItemColCount = MAX_ITEM_COLS;
-    let itemMeasureRafId = null;
-    let viewSyncRafId = null;
-    let galleryVisibilityObserver = null;
-    let mobileSnapTimeoutId = null;
-
-    function isMobileLayout() {
-      return Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0) <= MOBILE_LAYOUT_BREAKPOINT;
-    }
-
-    function getItemColumnCount() {
-      const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
-      if (width <= MOBILE_ITEM_TWO_COL_BREAKPOINT) return 2;
-      if (width <= MOBILE_LAYOUT_BREAKPOINT) return 3;
-      return MAX_ITEM_COLS;
-    }
-
-    function applyItemColumnLayout() {
-      const wrap = document.getElementById("itemWrap");
-      activeItemColCount = getItemColumnCount();
-      if (wrap) wrap.style.setProperty("--item-cols", String(activeItemColCount));
-      itemCols.forEach((col, idx) => {
-        if (!col) return;
-        col.style.display = idx < activeItemColCount ? "flex" : "none";
-      });
-      return activeItemColCount;
-    }
-
-    function scheduleItemLayoutRefresh(){
-      if(curView !== "item") return;
-      if(itemMeasureRafId) cancelAnimationFrame(itemMeasureRafId);
-      itemMeasureRafId = requestAnimationFrame(() => {
-        itemMeasureRafId = null;
-        resizeItemView();
-        measureItemCards();
-      });
-    }
 
     function buildItemView(){
       itemRegistry.length = 0;
       itemColLoopHeights.fill(1);
-      const nCols = applyItemColumnLayout();
-      for(let c=0;c<MAX_ITEM_COLS;c++){
+      for(let c=0;c<NCOLS;c++){
         const col = itemCols[c];
         col.innerHTML = "";
         col.style.minHeight = "";
@@ -1750,9 +1557,9 @@
         itemShuffleOrder = shuffleArr(itemImages.map((_, idx) => idx));
       }
       const shuffled = itemShuffleOrder.map((idx) => itemImages[idx]).filter(Boolean);
-      const baseColumns = Array.from({ length: nCols }, () => []);
+      const baseColumns = Array.from({ length: NCOLS }, () => []);
       shuffled.forEach((item, i) => {
-        baseColumns[i % nCols].push({ ...item, orderIndex: i });
+        baseColumns[i % NCOLS].push({ ...item, orderIndex: i });
       });
 
       /* loopSpan이 viewport 높이의 최소 2.5배가 되도록 copies 수 결정
@@ -1761,18 +1568,16 @@
       const viewH = iv ? Math.max(1, iv.clientHeight) : 800;
 
       /* 플레이스홀더 기준 1세트 예상 높이 추정 (실제 측정 전 근사치) */
-      const colGap = window.innerWidth <= 640 ? 6 : 8;
-      const wrapPadX = window.innerWidth <= 640 ? 32 : (isMobileLayout() ? 40 : 48);
-      const colW = iv ? (iv.clientWidth - wrapPadX - colGap * Math.max(0, nCols - 1)) / nCols : 120;
+      const colW = iv ? (iv.clientWidth - 48 - 8*5) / NCOLS : 120;
       const estColH = baseColumns.reduce((maxH, items, c) => {
         const ratios = ITEM_COL_RATIOS[c];
-        const colH = items.reduce((h, _, i) => h + colW * ratios[i % ratios.length] + colGap, 0);
+        const colH = items.reduce((h, _, i) => h + colW * ratios[i % ratios.length] + 8, 0);
         return Math.max(maxH, colH);
       }, 0);
       /* 필요한 copies = ceil(viewH * 2.5 / estColH) + 1, 최소 3 */
       ITEM_LOOP_COPIES = Math.max(3, Math.ceil((viewH * 2.5) / Math.max(1, estColH)) + 1);
 
-      for(let c=0;c<nCols;c++){
+      for(let c=0;c<NCOLS;c++){
         const col = itemCols[c];
         const baseItems = baseColumns[c];
         for(let copy=0; copy<ITEM_LOOP_COPIES; copy+=1){
@@ -1782,14 +1587,11 @@
             card.className = "item-card";
             const ratios = ITEM_COL_RATIOS[c];
             const ratio  = ratios[localIdx % ratios.length];
-            card.style.aspectRatio = "1 / " + ratio;
             const src    = resolveAssetSrc(item.src);
             if(src){
               const img = document.createElement("img");
               img.src=src; img.alt=item.label||"";
               img.loading="lazy"; img.draggable=false;
-              img.decoding="async";
-              img.onload=()=>{ scheduleItemLayoutRefresh(); };
               img.onerror=()=>{ card.innerHTML=""; addItemPh(card,item.label,ratio); };
               card.appendChild(img);
             } else {
@@ -1818,6 +1620,7 @@
     function addItemPh(card, label, ratio){
       const ph = document.createElement("div");
       ph.className = "item-card-ph";
+      ph.style.aspectRatio = "1 / "+ratio;
       ph.textContent = label||"—";
       card.appendChild(ph);
     }
@@ -1880,7 +1683,6 @@
     function resizeItemView(){
       const iv = document.getElementById("itemView");
       if(!iv) return;
-      applyItemColumnLayout();
       iViewH = Math.max(1, iv.clientHeight);
       iMaxScroll = Math.max(1, itemLoopSpan);
     }
@@ -1889,12 +1691,8 @@
     const itemHoverScales = [];
 
     function renderItemView(){
-      if (!iPtrDown && Math.abs(iScrollVel) > 0.08) {
-        iTargetScroll += iScrollVel;
-      }
-      iScrollTop += (iTargetScroll - iScrollTop) * getItemLerpFactor();
-      iScrollVel *= getMomentumDecay();
-      if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
+      iScrollTop += (iTargetScroll - iScrollTop) * 0.18;
+      iScrollVel *= 0.9;
 
       const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035));
       const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
@@ -1947,7 +1745,7 @@
 
         const normalized  = Math.max(-1, Math.min(1, visT));
         const depth       = Math.abs(normalized);
-        const colPhase    = entry.colIdx - ((activeItemColCount - 1) * 0.5);
+        const colPhase    = entry.colIdx - ((NCOLS - 1) * 0.5);
         const lift        = -depth * 10 - hs * 8;
         const driftX      = colPhase * 3 + flowDrift * 0.22;
         const driftY      = normalized * -6;
@@ -1969,7 +1767,6 @@
     }
     function stopItemRaf(){
       if(iRafId){ cancelAnimationFrame(iRafId); iRafId=null; }
-      if(itemMeasureRafId){ cancelAnimationFrame(itemMeasureRafId); itemMeasureRafId=null; }
       const wrap = document.getElementById("itemWrap");
       if(wrap) wrap.style.transform = "";
     }
@@ -1997,7 +1794,7 @@
       iv.addEventListener("wheel", e=>{
         e.preventDefault();
         iTargetScroll += e.deltaY;
-        iScrollVel += e.deltaY * getWheelVelocityFactor();
+        iScrollVel += e.deltaY * 0.7;
       },{passive:false});
 
       iv.addEventListener("pointerdown", e=>{
@@ -2019,13 +1816,8 @@
         if(Math.abs(dy)>3){ iPtrMoved=true; iDragging=true; }
         if(iDragging){
           e.preventDefault();
-          const nextScroll = iDragScroll0 - dy;
-          if (isMobileLayout()) {
-            syncItemScrollPosition(nextScroll);
-          } else {
-            iTargetScroll = nextScroll;
-          }
-          iScrollVel = ((iLastY - e.clientY) * getDragVelocityFactor()) + (iScrollVel * 0.18);
+          iTargetScroll = iDragScroll0 - dy;
+          iScrollVel += (iLastY - e.clientY)*1.8;
           iLastY = e.clientY;
         } else {
           updateItemHover(e.clientX, e.clientY);
@@ -2053,88 +1845,7 @@
     /* ── 뷰 전환 ── */
     const bgView   = document.getElementById("bgView");
     const itemView = document.getElementById("itemView");
-    const galleryWrap = document.getElementById("gallery");
-    const shellRoot = document.querySelector(".shell");
     let curView = "bg";
-
-    function syncCurrentViewLayout(options = {}) {
-      const { rebuildItemView = false, restartItemRaf = false } = options;
-      resizeGallery();
-      if (curView !== "item") return;
-
-      const nextColCount = getItemColumnCount();
-      if (rebuildItemView || nextColCount !== activeItemColCount || itemRegistry.length === 0) {
-        buildItemView();
-      } else {
-        applyItemColumnLayout();
-      }
-
-      resizeItemView();
-      requestAnimationFrame(() => {
-        measureItemCards();
-        if (restartItemRaf || !iRafId) startItemRaf();
-      });
-    }
-
-    function scheduleCurrentViewLayout(options = {}) {
-      const { rebuildItemView = false, restartItemRaf = false } = options;
-      if (viewSyncRafId) cancelAnimationFrame(viewSyncRafId);
-      viewSyncRafId = requestAnimationFrame(() => {
-        viewSyncRafId = null;
-        if (isMobileLayout()) {
-          requestAnimationFrame(() => syncCurrentViewLayout({ rebuildItemView, restartItemRaf }));
-          return;
-        }
-        syncCurrentViewLayout({ rebuildItemView, restartItemRaf });
-      });
-    }
-
-    function setMobileGalleryState(isActive) {
-      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
-      if (shellRoot) {
-        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
-      }
-      if (isActive) {
-        scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
-      }
-    }
-
-    function updateMobileSnapState() {
-      if (!shellRoot || !galleryWrap) return;
-      if (!isMobileLayout()) {
-        setMobileGalleryState(false);
-        return;
-      }
-
-      const shellHeight = Math.max(1, shellRoot.clientHeight);
-      const isGalleryPage = shellRoot.scrollTop >= shellHeight * 0.5;
-      setMobileGalleryState(isGalleryPage);
-    }
-
-    function scheduleMobileSnapLayoutRefresh() {
-      if (!isMobileLayout() || !shellRoot) return;
-      if (mobileSnapTimeoutId) clearTimeout(mobileSnapTimeoutId);
-      mobileSnapTimeoutId = setTimeout(() => {
-        mobileSnapTimeoutId = null;
-        updateMobileSnapState();
-        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
-          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
-        }
-      }, 90);
-    }
-
-    function initMobileGalleryObserver() {
-      if (!shellRoot) return;
-      if (galleryVisibilityObserver) {
-        shellRoot.removeEventListener("scroll", galleryVisibilityObserver);
-      }
-      galleryVisibilityObserver = () => {
-        updateMobileSnapState();
-        scheduleMobileSnapLayoutRefresh();
-      };
-      shellRoot.addEventListener("scroll", galleryVisibilityObserver, { passive: true });
-      updateMobileSnapState();
-    }
 
     function switchView(v){
       if(v===curView) return;
@@ -2144,48 +1855,42 @@
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
         itemView.style.display = "block";
-        scheduleCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
+        /* 빌드 → 2프레임 대기 → 측정 → RAF 시작 (DOM 렌더 완료 보장) */
+        buildItemView();
+        requestAnimationFrame(()=>{
+          resizeItemView();
+          requestAnimationFrame(()=>{
+            measureItemCards();
+            startItemRaf();
+          });
+        });
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
         itemView.style.display = "none";
         stopItemRaf();
         bgView.style.display = "";
-        scheduleCurrentViewLayout();
       }
     }
 
     document.getElementById("btnBg").addEventListener("click",   ()=>switchView("bg"));
     document.getElementById("btnItem").addEventListener("click",  ()=>switchView("item"));
 
-    function handleViewportChange() {
-      scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
-      updateMobileSnapState();
-      scheduleMobileSnapLayoutRefresh();
-    }
-
-    window.addEventListener("resize", handleViewportChange);
-    window.addEventListener("orientationchange", handleViewportChange);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener("resize", handleViewportChange);
-    }
+    window.addEventListener("resize", ()=>{ if(curView==="item"){ resizeItemView(); measureItemCards(); } });
 
     buildGallery();
-    applyItemColumnLayout();
-    scheduleCurrentViewLayout();
+    resizeGallery();
     startRender();
     syncMediaFromFolders();
-    initMobileGalleryObserver();
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
       targetScrollTop += e.deltaY;
-      scrollVelocity += e.deltaY * getWheelVelocityFactor();
+      scrollVelocity += e.deltaY * 0.7;
     }, { passive: false });
 
     galleryStage.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      e.preventDefault();
       isDragging = false;
       pointerDown = true;
       pointerMoved = false;
@@ -2196,7 +1901,7 @@
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
       updateHover(e.clientX, e.clientY);
-    }, { passive: false });
+    });
 
     galleryStage.addEventListener("pointermove", (e) => {
       updateHover(e.clientX, e.clientY);
@@ -2210,16 +1915,11 @@
 
       if (isDragging) {
         e.preventDefault();
-        const nextScroll = dragOriginScroll - dy;
-        if (isMobileLayout()) {
-          syncBgScrollPosition(nextScroll);
-        } else {
-          targetScrollTop = nextScroll;
-        }
-        scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
+        targetScrollTop = dragOriginScroll - dy;
+        scrollVelocity += (lastPointerY - e.clientY) * 1.8;
         lastPointerY = e.clientY;
       }
-    }, { passive: false });
+    });
 
     function endPointer(e) {
       if (pointerDown && !pointerMoved && activeIndex >= 0) {
@@ -2245,6 +1945,8 @@
         document.body.classList.remove("dragging-gallery");
       }
     });
+
+    window.addEventListener("resize", resizeGallery);
 
     /* ── 확대 오버레이 닫기 ── */
     slitClose.addEventListener("click", () => slitOverlay.classList.remove("is-open"));
