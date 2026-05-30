@@ -1787,8 +1787,8 @@
             if(src){
               const img = document.createElement("img");
               img.src=src; img.alt=item.label||"";
-              img.loading="lazy"; img.draggable=false;
-              img.decoding="async";
+              img.loading="eager"; img.draggable=false;
+              img.decoding="sync";
               img.onload=()=>{ scheduleItemLayoutRefresh(); };
               img.onerror=()=>{ card.innerHTML=""; addItemPh(card,item.label,ratio); };
               card.appendChild(img);
@@ -2081,10 +2081,6 @@
       if (viewSyncRafId) cancelAnimationFrame(viewSyncRafId);
       viewSyncRafId = requestAnimationFrame(() => {
         viewSyncRafId = null;
-        if (isMobileLayout()) {
-          requestAnimationFrame(() => syncCurrentViewLayout({ rebuildItemView, restartItemRaf }));
-          return;
-        }
         syncCurrentViewLayout({ rebuildItemView, restartItemRaf });
       });
     }
@@ -2144,7 +2140,7 @@
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
         itemView.style.display = "block";
-        scheduleCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
+        syncCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
@@ -2176,6 +2172,13 @@
     startRender();
     syncMediaFromFolders();
     initMobileGalleryObserver();
+
+    /* 소품 뷰 미리 빌드 — 탭 클릭 시 딜레이 제거 */
+    requestAnimationFrame(() => {
+      buildItemView();
+      resizeItemView();
+      requestAnimationFrame(() => { measureItemCards(); });
+    });
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
