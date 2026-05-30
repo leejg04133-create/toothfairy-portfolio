@@ -1163,11 +1163,13 @@
     const portfolioMetaSeeds = Object.keys(portfolioMetaMap)
       .sort()
       .map((key) => portfolioMetaMap[key]);
+    const _isRemote = /^https?:$/i.test(window.location.protocol);
     let portfolioItems = portfolioMetaSeeds.map((meta, index) => ({
       number: String(index + 1).padStart(2, "0"),
       title: meta.title,
       subtitle: meta.subtitle,
-      src: `image/${index + 1}.png`
+      /* 원격 환경에서는 GitHub API 결과가 올 때까지 src 없이 시작 → 빈 슬릿 방지 */
+      src: _isRemote ? "" : `image/${index + 1}.png`
     }));
 
     const galleryStage    = document.getElementById("galleryStage");
@@ -1359,13 +1361,11 @@
           if (discoveredItemImages.length > 0) {
             itemImages = discoveredItemImages;
             itemShuffleOrder = null;
-            if (curView === "item") {
-              buildItemView();
-              requestAnimationFrame(() => {
-                resizeItemView();
-                measureItemCards();
-              });
-            }
+            /* curView 무관하게 항상 빌드 — 탭 전환 시 딜레이 없음 */
+            buildItemView();
+            resizeItemView();
+            requestAnimationFrame(() => { measureItemCards(); });
+            if (curView === "item") startItemRaf();
           }
           return;
         }
@@ -1395,13 +1395,10 @@
         if (discoveredItemImages.length > 0) {
           itemImages = discoveredItemImages;
           itemShuffleOrder = null;
-          if (curView === "item") {
-            buildItemView();
-            requestAnimationFrame(() => {
-              resizeItemView();
-              measureItemCards();
-            });
-          }
+          buildItemView();
+          resizeItemView();
+          requestAnimationFrame(() => { measureItemCards(); });
+          if (curView === "item") startItemRaf();
         }
       } catch (error) {
         console.warn("[portfolio] media sync failed", error);
@@ -1476,12 +1473,13 @@
             img.decoding = "async";
             img.draggable = false;
             img.onerror = () => {
-              media.innerHTML = "";
-              media.appendChild(createSlitPlaceholder(item, "image load failed"));
+              /* 이미지 로드 실패 시 슬릿 자체를 숨김 — 빈 슬릿 방지 */
+              slit.style.display = "none";
             };
             media.appendChild(img);
           } else {
-            media.appendChild(createSlitPlaceholder(item));
+            /* src 없으면 슬릿 자체를 숨김 — 빈 슬릿 방지 */
+            slit.style.display = "none";
           }
 
           const number = document.createElement("div");
@@ -2140,7 +2138,13 @@
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
         itemView.style.display = "block";
-        syncCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
+        /* itemRegistry가 이미 있으면 rebuild 스킵 — 즉시 RAF만 시작 */
+        if (itemRegistry.length > 0) {
+          resizeItemView();
+          startItemRaf();
+        } else {
+          syncCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
+        }
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
@@ -2172,13 +2176,6 @@
     startRender();
     syncMediaFromFolders();
     initMobileGalleryObserver();
-
-    /* 소품 뷰 미리 빌드 — 탭 클릭 시 딜레이 제거 */
-    requestAnimationFrame(() => {
-      buildItemView();
-      resizeItemView();
-      requestAnimationFrame(() => { measureItemCards(); });
-    });
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
