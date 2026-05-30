@@ -414,7 +414,6 @@
       height: 100%;
       overflow: hidden;
       border-radius: 16px;
-      touch-action: none;
     }
 
     .gallery-stage > .gallery {
@@ -790,8 +789,8 @@
       .shell {
         grid-template-columns: 1fr;
         width: 100%;
-        height: 100vh;
-        min-height: 100vh;
+        height: 100dvh;
+        min-height: 100dvh;
         margin: 0;
         gap: 0;
         align-items: stretch;
@@ -806,8 +805,8 @@
       .intro {
         position: relative;
         top: 0;
-        min-height: 100vh;
-        height: 100vh;
+        min-height: 100dvh;
+        height: 100dvh;
         padding: 24px 22px 20px;
         border-radius: 0;
         justify-content: flex-start;
@@ -864,8 +863,8 @@
       .gallery-wrap {
         position: relative;
         top: 0;
-        min-height: 100vh;
-        height: 100vh;
+        min-height: 100dvh;
+        height: 100dvh;
         flex-shrink: 0;
         border-radius: 0;
         scroll-snap-align: start;
@@ -2090,15 +2089,14 @@
       });
     }
 
-    let _prevMobileGalleryActive = false;
     function setMobileGalleryState(isActive) {
-      const active = Boolean(isActive) && isMobileLayout();
-      document.body.classList.toggle("mobile-gallery-active", active);
-      if (shellRoot) shellRoot.classList.toggle("is-gallery-page", active);
-      if (active && !_prevMobileGalleryActive) {
+      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      if (shellRoot) {
+        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+      }
+      if (isActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
-      _prevMobileGalleryActive = active;
     }
 
     function updateMobileSnapState() {
@@ -2119,6 +2117,9 @@
       mobileSnapTimeoutId = setTimeout(() => {
         mobileSnapTimeoutId = null;
         updateMobileSnapState();
+        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
+          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
+        }
       }, 90);
     }
 
@@ -2184,6 +2185,7 @@
 
     galleryStage.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
+      e.preventDefault();
       isDragging = false;
       pointerDown = true;
       pointerMoved = false;
@@ -2194,7 +2196,7 @@
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
       updateHover(e.clientX, e.clientY);
-    });
+    }, { passive: false });
 
     galleryStage.addEventListener("pointermove", (e) => {
       updateHover(e.clientX, e.clientY);
