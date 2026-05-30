@@ -414,7 +414,6 @@
       height: 100%;
       overflow: hidden;
       border-radius: 16px;
-      touch-action: none;
     }
 
     .gallery-stage > .gallery {
@@ -2090,15 +2089,14 @@
       });
     }
 
-    let _prevMobileGalleryActive = false;
     function setMobileGalleryState(isActive) {
-      const active = Boolean(isActive) && isMobileLayout();
-      document.body.classList.toggle("mobile-gallery-active", active);
-      if (shellRoot) shellRoot.classList.toggle("is-gallery-page", active);
-      if (active && !_prevMobileGalleryActive) {
+      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      if (shellRoot) {
+        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+      }
+      if (isActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
-      _prevMobileGalleryActive = active;
     }
 
     function updateMobileSnapState() {
@@ -2119,6 +2117,9 @@
       mobileSnapTimeoutId = setTimeout(() => {
         mobileSnapTimeoutId = null;
         updateMobileSnapState();
+        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
+          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
+        }
       }, 90);
     }
 
@@ -2217,7 +2218,7 @@
         scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
         lastPointerY = e.clientY;
       }
-    }, { passive: false });
+    });
 
     function endPointer(e) {
       if (pointerDown && !pointerMoved && activeIndex >= 0) {
