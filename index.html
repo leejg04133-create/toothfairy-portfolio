@@ -2090,14 +2090,15 @@
       });
     }
 
+    let _prevMobileGalleryActive = false;
     function setMobileGalleryState(isActive) {
-      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
-      if (shellRoot) {
-        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
-      }
-      if (isActive) {
+      const active = Boolean(isActive) && isMobileLayout();
+      document.body.classList.toggle("mobile-gallery-active", active);
+      if (shellRoot) shellRoot.classList.toggle("is-gallery-page", active);
+      if (active && !_prevMobileGalleryActive) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       }
+      _prevMobileGalleryActive = active;
     }
 
     function updateMobileSnapState() {
@@ -2118,9 +2119,6 @@
       mobileSnapTimeoutId = setTimeout(() => {
         mobileSnapTimeoutId = null;
         updateMobileSnapState();
-        if (shellRoot.scrollTop >= Math.max(1, shellRoot.clientHeight) * 0.5) {
-          scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && itemRegistry.length === 0 });
-        }
       }, 90);
     }
 
