@@ -406,6 +406,7 @@
       height: 100%;
       overflow: hidden;
       border-radius: 16px;
+      touch-action: none;
     }
 
     .gallery-stage > .gallery {
@@ -1919,7 +1920,7 @@
         scrollVelocity += (lastPointerY - e.clientY) * 1.8;
         lastPointerY = e.clientY;
       }
-    });
+    }, { passive: false });
 
     function endPointer(e) {
       if (pointerDown && !pointerMoved && activeIndex >= 0) {
