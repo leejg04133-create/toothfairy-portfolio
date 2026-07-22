@@ -798,6 +798,18 @@
         color-scheme: dark;
       }
 
+      .slit,
+      .slit-media,
+      .item-card,
+      .item-col,
+      .item-masonry-wrap {
+        will-change: auto;
+      }
+
+      .gallery {
+        will-change: transform;
+      }
+
       .view-toggle {
         padding: 2px;
       }
@@ -1208,13 +1220,13 @@
     const contactRecipient = "o_o_vvvvv@naver.com";
     const assetRootMeta   = document.querySelector('meta[name="portfolio-asset-root"]');
     const slitHeight      = 72;
-    const slitGap         = 22;
-    const slitPitch       = slitHeight + slitGap;
     const slitElements    = [];
     const BG_LOOP_COPIES  = 3;
     let bgWrappedScrollTop = 0;
+    let slitPitch = slitHeight + 22;
 
     let activeIndex = -1;
+    let pressedSlitIndex = -1;
     let pointerDown = false;
     let pointerMoved = false;
     let scrollVelocity = 0;
@@ -1227,6 +1239,7 @@
     let targetScrollTop = 0;
     let dragOriginY = 0;
     let dragOriginScroll = 0;
+    let lastPointerMoveTs = 0;
 
     const portfolioAssetRoot = (() => {
       const configuredRoot = (
@@ -1497,16 +1510,27 @@
       return ((value % span) + span) % span;
     }
 
+    function getSlitGap() {
+      return window.innerWidth <= 640 ? 18 : 22;
+    }
+
+    function syncSlitPitch() {
+      slitPitch = slitHeight + getSlitGap();
+      return slitPitch;
+    }
+
     function getBgLerpFactor() {
-      return isMobileLayout() ? 0.3 : 0.18;
+      if (pointerDown && isDragging) return 1;
+      return isMobileLayout() ? 0.55 : 0.18;
     }
 
     function getItemLerpFactor() {
-      return isMobileLayout() ? 0.3 : 0.18;
+      if (iPtrDown && iDragging) return 1;
+      return isMobileLayout() ? 0.55 : 0.18;
     }
 
     function getDragVelocityFactor() {
-      return isMobileLayout() ? 0.95 : 1.8;
+      return isMobileLayout() ? 1.35 : 1.8;
     }
 
     function getWheelVelocityFactor() {
@@ -1514,7 +1538,7 @@
     }
 
     function getMomentumDecay() {
-      return isMobileLayout() ? 0.94 : 0.9;
+      return isMobileLayout() ? 0.92 : 0.9;
     }
 
     function syncBgScrollPosition(nextScrollTop) {
@@ -1525,6 +1549,29 @@
     function syncItemScrollPosition(nextScrollTop) {
       iScrollTop = nextScrollTop;
       iTargetScroll = nextScrollTop;
+    }
+
+    function hitTestSlitIndex(clientX, clientY) {
+      const stack = document.elementsFromPoint(clientX, clientY);
+      for (let i = 0; i < stack.length; i += 1) {
+        const slit = stack[i].closest?.(".slit");
+        if (slit && galleryList.contains(slit)) {
+          const idx = Number.parseInt(slit.dataset.index || "", 10);
+          return Number.isFinite(idx) ? idx : -1;
+        }
+      }
+      return -1;
+    }
+
+    function hitTestItemEntry(clientX, clientY) {
+      const stack = document.elementsFromPoint(clientX, clientY);
+      for (let i = 0; i < stack.length; i += 1) {
+        const card = stack[i].closest?.(".item-card");
+        if (!card) continue;
+        const entry = itemRegistry.find((item) => item.el === card);
+        if (entry) return entry;
+      }
+      return null;
     }
 
     function buildGallery() {
@@ -1631,36 +1678,30 @@
     }
 
     function applyActiveState() {
+      const highlightIndex = isMobileLayout()
+        ? (pointerDown && !pointerMoved ? pressedSlitIndex : -1)
+        : activeIndex;
       slitElements.forEach(({ slit, dataIndex }) => {
-        slit.classList.toggle("is-active", dataIndex === activeIndex);
+        slit.classList.toggle("is-active", dataIndex === highlightIndex);
       });
     }
 
     function resizeGallery() {
+      syncSlitPitch();
       const rect = galleryStage.getBoundingClientRect();
       viewportHeight = Math.max(1, Math.round(rect.height));
       maxScroll = Math.max(0, portfolioItems.length * slitPitch - viewportHeight + 40);
     }
 
     function updateHover(clientX, clientY) {
-      const rect = galleryStage.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      if (x < 0 || y < 0 || x > rect.width || y > rect.height) {
-        activeIndex = -1;
+      if (isMobileLayout()) {
+        /* 모바일은 수학 좌표 hover 금지 — 눌린 슬릿만 하이라이트 */
+        activeIndex = pressedSlitIndex;
         applyActiveState();
         return;
       }
 
-      const loopSpan = portfolioItems.length * slitPitch;
-      if (!loopSpan) {
-        activeIndex = -1;
-        applyActiveState();
-        return;
-      }
-
-      const localY = positiveModulo(y + bgWrappedScrollTop - 18, loopSpan);
-      activeIndex = Math.floor(localY / slitPitch) % portfolioItems.length;
+      activeIndex = hitTestSlitIndex(clientX, clientY);
       applyActiveState();
     }
 
@@ -1668,41 +1709,61 @@
     const slitHoverScales = [];   /* 각 dataIndex 별 현재 hover scale (0~1) */
 
     function render() {
+      const mobile = isMobileLayout();
       if (!pointerDown && Math.abs(scrollVelocity) > 0.08) {
         targetScrollTop += scrollVelocity;
       }
-      scrollTop += (targetScrollTop - scrollTop) * getBgLerpFactor();
-      scrollVelocity *= getMomentumDecay();
-      if (Math.abs(scrollVelocity) < 0.02) scrollVelocity = 0;
+      const lerp = getBgLerpFactor();
+      if (lerp >= 0.999) {
+        scrollTop = targetScrollTop;
+      } else {
+        scrollTop += (targetScrollTop - scrollTop) * lerp;
+      }
+      if (!pointerDown) {
+        scrollVelocity *= getMomentumDecay();
+        if (Math.abs(scrollVelocity) < 0.02) scrollVelocity = 0;
+      }
       const loopSpan = portfolioItems.length * slitPitch;
       bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
 
-      /* hover scale lerp 업데이트 */
-      for (let i = 0; i < portfolioItems.length; i++) {
-        const target = (i === activeIndex) ? 1 : 0;
-        slitHoverScales[i] = (slitHoverScales[i] || 0) + (target - (slitHoverScales[i] || 0)) * 0.14;
+      /* hover scale: 데스크톱만. 모바일은 좌표 어긋남/버벅임 원인 */
+      if (!mobile) {
+        for (let i = 0; i < portfolioItems.length; i++) {
+          const target = (i === activeIndex) ? 1 : 0;
+          slitHoverScales[i] = (slitHoverScales[i] || 0) + (target - (slitHoverScales[i] || 0)) * 0.14;
+        }
       }
 
+      const effectAmp = mobile ? 0.28 : 1;
+      const padTop = 18;
+
       slitElements.forEach(({ slit, media, renderIndex, dataIndex }) => {
-        const centerY = 18 + renderIndex * slitPitch + slitHeight / 2 - bgWrappedScrollTop;
+        const centerY = padTop + renderIndex * slitPitch + slitHeight / 2 - bgWrappedScrollTop;
         const visibleT = ((centerY / Math.max(viewportHeight, 1)) * 2.0) - 1.0;
+
+        if (mobile && (visibleT < -1.4 || visibleT > 1.4)) {
+          if (slit.style.transform) slit.style.transform = "";
+          if (media.style.transform) media.style.transform = "";
+          return;
+        }
+
         const profile = Math.max(-1, Math.min(1, Math.sin(visibleT * 1.5707963)));
         const depth = Math.abs(profile);
-        const lift = -depth * 8;
-        const rotateX = -profile * (5 + Math.abs(scrollVelocity) * 0.03);
-        const scaleX = 1 - depth * 0.035;
-        const scaleY = 1 - depth * 0.015;
-        const mediaShift = profile * (10 + Math.abs(scrollVelocity) * 0.02);
+        const lift = -depth * 8 * effectAmp;
+        const rotateX = -profile * (5 + Math.abs(scrollVelocity) * 0.03) * effectAmp;
+        const scaleX = 1 - depth * 0.035 * effectAmp;
+        const scaleY = 1 - depth * 0.015 * effectAmp;
+        const mediaShift = profile * (10 + Math.abs(scrollVelocity) * 0.02) * effectAmp;
 
-        /* hover 확대: scaleY 최대 1.72배, scaleX 1.012배 (부드럽게 키워서 주변 침범 최소화) */
-        const hs = slitHoverScales[dataIndex] || 0;
+        const hs = mobile ? 0 : (slitHoverScales[dataIndex] || 0);
         const hScaleY = 1 + hs * 0.72;
         const hScaleX = 1 + hs * 0.012;
         const hLift   = hs * -2;
         const mediaHoverScale = 1.04 + hs * 0.08;
+        const pressBoost = (mobile && dataIndex === pressedSlitIndex && pointerDown && !pointerMoved) ? 1.04 : 1;
 
-        slit.style.transform = `translate3d(0, ${lift + hLift}px, 0) rotateX(${rotateX}deg) scale(${scaleX * hScaleX}, ${scaleY * hScaleY})`;
+        slit.style.transform = `translate3d(0, ${lift + hLift}px, 0) rotateX(${rotateX}deg) scale(${scaleX * hScaleX * pressBoost}, ${scaleY * hScaleY * pressBoost})`;
         slit.style.filter = "";
         media.style.transform = `translate3d(0, ${mediaShift}px, 0) scale(${mediaHoverScale})`;
       });
@@ -1958,8 +2019,10 @@
     let iScrollTop = 0, iTargetScroll = 0, iScrollVel = 0;
     let iViewH = 1, iMaxScroll = 0, iRafId = null;
     let iActiveIdx = -1;
+    let pressedItemEntry = null;
     let iPtrDown=false, iPtrMoved=false, iDragging=false;
     let iDragY0=0, iLastY=0, iDragScroll0=0;
+    let iLastMoveTs = 0;
 
     function resizeItemView(){
       const iv = document.getElementById("itemView");
@@ -1973,71 +2036,72 @@
     const itemHoverScales = [];
 
     function renderItemView(){
+      const mobile = isMobileLayout();
       if (!iPtrDown && Math.abs(iScrollVel) > 0.08) {
         iTargetScroll += iScrollVel;
       }
-      iScrollTop += (iTargetScroll - iScrollTop) * getItemLerpFactor();
-      iScrollVel *= getMomentumDecay();
-      if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
+      const lerp = getItemLerpFactor();
+      if (lerp >= 0.999) {
+        iScrollTop = iTargetScroll;
+      } else {
+        iScrollTop += (iTargetScroll - iScrollTop) * lerp;
+      }
+      if (!iPtrDown) {
+        iScrollVel *= getMomentumDecay();
+        if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
+      }
 
-      const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035));
-      const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06));
+      const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035)) * (mobile ? 0.35 : 1);
+      const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06)) * (mobile ? 0.35 : 1);
 
-      /* ─── 핵심: 컬럼이 아닌 wrap 전체를 이동 ───
-         wrappedScroll = iScrollTop을 loopSpan으로 나눈 나머지 (항상 양수)
-         wrap을 -(loopSpan + wrappedScroll) 만큼 올리면:
-           copy0 → 화면 위로 올라감
-           copy1 → 화면에 보임
-           copy2 → 화면 아래 대기
-         wrappedScroll이 loopSpan에 도달하면 다시 0으로 돌아가면서
-         copy0이 copy3 역할을 하는 seamless 루프 완성 */
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
-      /* wrapTranslateY: copy1(두번째 세트)이 wrappedScroll=0일때 화면 상단에 오도록
-         copy1 domY = loopSpan (copy0 다음)
-         원하는 copy1 화면Y = -wrappedScroll (0이면 상단, 증가하면 위로 올라감)
-         wrapTranslateY + loopSpan = -wrappedScroll
-         wrapTranslateY = -loopSpan - wrappedScroll */
       const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
 
       const wrap = document.getElementById("itemWrap");
       if(wrap) wrap.style.transform = "translate3d(0," + wrapTranslateY + "px,0)";
 
-      /* 컬럼에는 transform 적용 안 함 — 이게 지진의 원인이었음 */
       itemCols.forEach(col => { if(col) col.style.transform = ""; });
 
-      /* is-active 업데이트 */
+      const pressedEl = pressedItemEntry?.el || null;
       itemRegistry.forEach((entry) => {
-        entry.el.classList.toggle("is-active", entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
+        const active = mobile
+          ? Boolean(iPtrDown && !iPtrMoved && pressedEl && entry.el === pressedEl)
+          : (iActiveIdx >= 0 && entry.dataIndex === iActiveIdx);
+        entry.el.classList.toggle("is-active", active);
       });
 
-      /* 카드별 흐름 효과 (위치 이동 없이 순수 시각 효과만) */
+      const effectAmp = mobile ? 0.22 : 1;
+
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
-
-        /* 카드 중심의 화면 Y 위치: wrap 기준 topAbs + wrapTranslateY + 높이/2 */
         const cardScreenY = entry.topAbs + wrapTranslateY + itemWrapTop + entry.height * 0.5;
         const visT = (cardScreenY / iViewH) * 2.0 - 1.0;
 
-        /* hover scale */
-        const isHovered = (entry.dataIndex === iActiveIdx);
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + ((isHovered ? 1 : 0) - (itemHoverScales[idx] || 0)) * 0.12;
+        const isHovered = !mobile && (entry.dataIndex === iActiveIdx);
+        const isPressed = mobile && entry.el === pressedEl;
+        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (((isHovered || isPressed) ? 1 : 0) - (itemHoverScales[idx] || 0)) * (mobile ? 0.28 : 0.12);
         const hs = itemHoverScales[idx];
 
-        /* 화면 밖 카드는 효과 스킵 */
-        if(visT < -1.8 || visT > 1.8){
-          card.style.transform = hs > 0.002 ? "scale(" + (1 + hs * 0.12).toFixed(4) + ")" : "";
+        if(visT < -1.6 || visT > 1.6){
+          card.style.transform = hs > 0.002 ? "scale(" + (1 + hs * (mobile ? 0.06 : 0.12)).toFixed(4) + ")" : "";
+          return;
+        }
+
+        if (mobile) {
+          const pressScale = 1 + hs * 0.06;
+          card.style.transform = pressScale > 1.002 ? "scale(" + pressScale.toFixed(4) + ")" : "";
           return;
         }
 
         const normalized  = Math.max(-1, Math.min(1, visT));
         const depth       = Math.abs(normalized);
         const colPhase    = entry.colIdx - ((activeItemColCount - 1) * 0.5);
-        const lift        = -depth * 10 - hs * 8;
-        const driftX      = colPhase * 3 + flowDrift * 0.22;
-        const driftY      = normalized * -6;
-        const rotX        = (normalized * -5) + (flowTilt * 0.45);
-        const rotZ        = (colPhase * 0.55) + (flowTilt * 0.18);
-        const finalScale  = (1 - depth * 0.025) + hs * 0.12;
+        const lift        = (-depth * 10 - hs * 8) * effectAmp;
+        const driftX      = (colPhase * 3 + flowDrift * 0.22) * effectAmp;
+        const driftY      = normalized * -6 * effectAmp;
+        const rotX        = ((normalized * -5) + (flowTilt * 0.45)) * effectAmp;
+        const rotZ        = ((colPhase * 0.55) + (flowTilt * 0.18)) * effectAmp;
+        const finalScale  = (1 - depth * 0.025 * effectAmp) + hs * 0.12;
 
         card.style.transform =
           "perspective(520px) translate3d(" + driftX + "px," + (lift + driftY) + "px,0)" +
@@ -2059,19 +2123,12 @@
     }
 
     function updateItemHover(cx, cy){
-      const iv = document.getElementById("itemView");
-      if(!iv) return;
-      const vr = iv.getBoundingClientRect();
-      if(cx<vr.left||cy<vr.top||cx>vr.right||cy>vr.bottom){ iActiveIdx=-1; return; }
-
-      let hit = -1;
-      itemRegistry.forEach((entry) => {
-        const r = entry.el.getBoundingClientRect();
-        if(cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom){
-          hit = entry.dataIndex;
-        }
-      });
-      iActiveIdx = hit;
+      if (isMobileLayout()) {
+        iActiveIdx = pressedItemEntry ? pressedItemEntry.dataIndex : -1;
+        return;
+      }
+      const hit = hitTestItemEntry(cx, cy);
+      iActiveIdx = hit ? hit.dataIndex : -1;
     }
 
     /* ── 이벤트 ── */
@@ -2087,11 +2144,14 @@
       iv.addEventListener("pointerdown", e=>{
         if(e.button!==0) return;
         iPtrDown=true; iPtrMoved=false; iDragging=false;
-        iDragY0=e.clientY; iLastY=e.clientY;
-        iDragScroll0=iTargetScroll;  /* lerp된 iScrollTop 대신 iTargetScroll 기준 */
+        iScrollVel = 0;
+        syncItemScrollPosition(iScrollTop);
+        iDragY0=e.clientY; iLastY=e.clientY; iLastMoveTs = performance.now();
+        iDragScroll0=iScrollTop;
+        pressedItemEntry = hitTestItemEntry(e.clientX, e.clientY);
+        iActiveIdx = pressedItemEntry ? pressedItemEntry.dataIndex : -1;
         iv.setPointerCapture(e.pointerId);
         iv.classList.add("is-dragging");
-        updateItemHover(e.clientX, e.clientY);
       });
 
       iv.addEventListener("pointermove", e=>{
@@ -2100,7 +2160,13 @@
           return;
         }
         const dy = e.clientY - iDragY0;
-        if(Math.abs(dy)>3){ iPtrMoved=true; iDragging=true; }
+        const moveThreshold = isMobileLayout() ? 6 : 3;
+        if(Math.abs(dy)>moveThreshold){
+          iPtrMoved=true;
+          iDragging=true;
+          pressedItemEntry = null;
+          iActiveIdx = -1;
+        }
         if(iDragging){
           e.preventDefault();
           const nextScroll = iDragScroll0 - dy;
@@ -2109,28 +2175,33 @@
           } else {
             iTargetScroll = nextScroll;
           }
-          iScrollVel = ((iLastY - e.clientY) * getDragVelocityFactor()) + (iScrollVel * 0.18);
+          const now = performance.now();
+          const dt = Math.max(8, now - iLastMoveTs);
+          const frameVel = ((iLastY - e.clientY) / dt) * 16.67;
+          iScrollVel = (frameVel * getDragVelocityFactor()) + (iScrollVel * 0.2);
           iLastY = e.clientY;
-        } else {
-          updateItemHover(e.clientX, e.clientY);
+          iLastMoveTs = now;
         }
       });
 
       function endPtr(e){
-        if(!iPtrMoved && iActiveIdx >= 0){
-          const hit = itemRegistry.find(entry => entry.copyIdx === 1 && entry.dataIndex === iActiveIdx);
-          if(hit && hit.itemData) openSlit(hit.itemData);
+        if(!iPtrMoved && pressedItemEntry?.itemData){
+          openSlit(pressedItemEntry.itemData);
         }
         iPtrDown=false; iDragging=false;
+        pressedItemEntry = null;
+        if (isMobileLayout()) iActiveIdx = -1;
         iv.classList.remove("is-dragging");
         if(e && iv.hasPointerCapture(e.pointerId)) iv.releasePointerCapture(e.pointerId);
       }
       iv.addEventListener("pointerup",    endPtr);
       iv.addEventListener("pointercancel",endPtr);
       iv.addEventListener("pointerleave", ()=>{
-        iActiveIdx=-1;
-        itemRegistry.forEach(entry => entry.el.classList.remove("is-active"));
-        if(iPtrDown){ iPtrDown=false; iv.classList.remove("is-dragging"); }
+        if (!isMobileLayout()) {
+          iActiveIdx=-1;
+          itemRegistry.forEach(entry => entry.el.classList.remove("is-active"));
+        }
+        if(iPtrDown){ iPtrDown=false; iv.classList.remove("is-dragging"); pressedItemEntry=null; }
       });
     })();
 
@@ -2287,23 +2358,34 @@
       isDragging = false;
       pointerDown = true;
       pointerMoved = false;
+      scrollVelocity = 0;
+      syncBgScrollPosition(scrollTop);
       dragOriginY = e.clientY;
       lastPointerY = e.clientY;
-      dragOriginScroll = scrollTop;  /* 실제 렌더 위치 기준 — 점프 방지 */
+      lastPointerMoveTs = performance.now();
+      dragOriginScroll = scrollTop;
+      pressedSlitIndex = hitTestSlitIndex(e.clientX, e.clientY);
+      activeIndex = pressedSlitIndex;
       galleryStage.setPointerCapture(e.pointerId);
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
-      updateHover(e.clientX, e.clientY);
+      applyActiveState();
     });
 
     galleryStage.addEventListener("pointermove", (e) => {
-      updateHover(e.clientX, e.clientY);
-      if (!pointerDown) return;
+      if (!pointerDown) {
+        if (!isMobileLayout()) updateHover(e.clientX, e.clientY);
+        return;
+      }
 
       const dy = e.clientY - dragOriginY;
-      if (Math.abs(dy) > 3) {
+      const moveThreshold = isMobileLayout() ? 6 : 3;
+      if (Math.abs(dy) > moveThreshold) {
         pointerMoved = true;
         isDragging = true;
+        pressedSlitIndex = -1;
+        activeIndex = -1;
+        applyActiveState();
       }
 
       if (isDragging) {
@@ -2314,16 +2396,27 @@
         } else {
           targetScrollTop = nextScroll;
         }
-        scrollVelocity = ((lastPointerY - e.clientY) * getDragVelocityFactor()) + (scrollVelocity * 0.18);
+        const now = performance.now();
+        const dt = Math.max(8, now - lastPointerMoveTs);
+        const frameVel = ((lastPointerY - e.clientY) / dt) * 16.67;
+        scrollVelocity = (frameVel * getDragVelocityFactor()) + (scrollVelocity * 0.2);
         lastPointerY = e.clientY;
+        lastPointerMoveTs = now;
+      } else if (!isMobileLayout()) {
+        updateHover(e.clientX, e.clientY);
       }
     });
 
     function endPointer(e) {
-      if (pointerDown && !pointerMoved && activeIndex >= 0) {
-        openSlit(portfolioItems[activeIndex]);
+      if (pointerDown && !pointerMoved && pressedSlitIndex >= 0) {
+        openSlit(portfolioItems[pressedSlitIndex]);
       }
       pointerDown = false;
+      pressedSlitIndex = -1;
+      if (isMobileLayout()) {
+        activeIndex = -1;
+        applyActiveState();
+      }
       galleryScroll.classList.remove("is-dragging");
       document.body.classList.remove("dragging-gallery");
       if (e && galleryStage.hasPointerCapture(e.pointerId)) {
@@ -2335,10 +2428,13 @@
     galleryStage.addEventListener("pointerup", endPointer);
     galleryStage.addEventListener("pointercancel", endPointer);
     galleryStage.addEventListener("pointerleave", () => {
-      activeIndex = -1;
-      applyActiveState();
+      if (!isMobileLayout()) {
+        activeIndex = -1;
+        applyActiveState();
+      }
       if (pointerDown) {
         pointerDown = false;
+        pressedSlitIndex = -1;
         galleryScroll.classList.remove("is-dragging");
         document.body.classList.remove("dragging-gallery");
       }
