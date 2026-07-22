@@ -138,12 +138,36 @@
       gap: 18px;
     }
 
-    .meta-list {
-      margin-top: 28px;
+    .profile-block {
+      margin-top: 52px;
       padding-top: 28px;
       border-top: 1px solid var(--line);
       display: grid;
+      grid-template-columns: 104px minmax(0, 1fr);
+      gap: 20px;
+      align-items: center;
+    }
+
+    .profile-photo {
+      width: 104px;
+      height: 104px;
+      object-fit: contain;
+      object-position: center center;
+      border-radius: 8px;
+      border: 1px solid rgba(23, 23, 23, 0.1);
+      background: #ffffff;
+      box-shadow: 0 10px 24px rgba(17, 17, 17, 0.08);
+      display: block;
+    }
+
+    .meta-list {
+      margin-top: 0;
+      padding-top: 0;
+      border-top: none;
+      display: grid;
       gap: 14px;
+      min-width: 0;
+      width: 100%;
     }
 
     .meta-item {
@@ -167,7 +191,7 @@
       flex-wrap: wrap;
       justify-content: flex-end;
       gap: 12px;
-      margin-top: 28px;
+      margin-top: 20px;
     }
 
     .btn {
@@ -300,7 +324,7 @@
       height: 100%;
       display: block;
       object-fit: cover;
-      filter: grayscale(0.55) saturate(0.9) brightness(1.06);
+      filter: grayscale(1) saturate(0.72) brightness(0.92);
       opacity: 0;
       transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
@@ -308,11 +332,11 @@
       -webkit-user-drag: none;
     }
     .item-card img.is-loaded {
-      opacity: 1;
+      opacity: 0.95;
     }
     .item-card.is-active img,
     .item-card:hover img {
-      filter: grayscale(0) saturate(1) brightness(1.08);
+      filter: grayscale(0) saturate(1) brightness(1);
     }
     .item-card-ph {
       position: absolute;
@@ -394,8 +418,6 @@
       flex: 1;
       min-height: 0;
       overflow: hidden;
-      perspective: 1600px;
-      perspective-origin: 50% 50%;
     }
 
     .gallery-scroll {
@@ -476,8 +498,8 @@
       box-shadow: 0 8px 18px rgba(0,0,0,0.12);
       flex-shrink: 0;
       transform-origin: center center;
-      will-change: transform, filter;
-      transition: box-shadow 220ms ease;
+      will-change: transform;
+      transition: box-shadow 180ms ease;
     }
 
     .slit-inner {
@@ -490,7 +512,6 @@
     .slit-media {
       position: absolute;
       inset: -18% -2%;
-      transition: transform 120ms linear;
       will-change: transform;
       transform-origin: center center;
     }
@@ -528,17 +549,24 @@
       transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
       pointer-events: none;
-      filter: grayscale(0.55) saturate(0.9) brightness(1.06) contrast(1.02);
+      filter: grayscale(1) saturate(0.72) brightness(0.92) contrast(1);
       opacity: 0;
     }
     .slit img.is-loaded {
-      opacity: 1;
+      opacity: 0.95;
     }
 
     .gallery:hover .slit:hover img,
     .slit.is-active img {
-      filter: grayscale(0) saturate(1) brightness(1.08) contrast(1.02);
+      filter: grayscale(0) saturate(1) brightness(1) contrast(1);
       opacity: 1;
+    }
+
+    /* 스크롤 중에는 호버/액티브 컬러 비활성 — 정적 호버만 컬러 */
+    .gallery.is-scrolling .slit:hover img,
+    .gallery.is-scrolling .slit.is-active img {
+      filter: grayscale(1) saturate(0.72) brightness(0.92) contrast(1);
+      opacity: 0.95;
     }
 
     /* 클릭 확대 오버레이 */
@@ -877,11 +905,28 @@
 
       .intro-copy {
         gap: 12px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      .profile-block {
+        margin-top: auto;
+        padding-top: 20px;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+      }
+
+      .profile-photo {
+        width: 84px;
+        height: 84px;
       }
 
       .meta-list {
-        margin-top: 18px;
-        padding-top: 18px;
+        margin-top: 0;
+        padding-top: 0;
         gap: 10px;
       }
 
@@ -890,8 +935,8 @@
       }
 
       .cta-group {
-        margin-top: auto;
-        padding-top: 18px;
+        margin-top: 16px;
+        padding-top: 0;
         justify-content: flex-start;
       }
 
@@ -982,9 +1027,22 @@
         line-height: 1.55;
       }
 
+      .profile-block {
+        margin-top: auto;
+        padding-top: 16px;
+        grid-template-columns: 72px minmax(0, 1fr);
+        gap: 12px;
+        align-items: center;
+      }
+
+      .profile-photo {
+        width: 72px;
+        height: 72px;
+      }
+
       .meta-list {
-        margin-top: 14px;
-        padding-top: 14px;
+        margin-top: 0;
+        padding-top: 0;
         gap: 8px;
       }
 
@@ -1056,18 +1114,21 @@
             We design high-quality 3D assets that blend seamlessly into your story. Explore our curated feed of
             optimized environments, tailored to elevate the visual depth of your artwork.
           </p>
-          <div class="meta-list">
-            <div class="meta-item">
-              <span class="meta-label">Name</span>
-              <span class="meta-value">이빨요정/ToothFairy</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Field</span>
-              <span class="meta-value">Webtoon 3D Modeller</span>
-            </div>
-            <div class="meta-item">
-              <span class="meta-label">Based</span>
-              <span class="meta-value">Seoul, Korea</span>
+          <div class="profile-block">
+            <img class="profile-photo" src="./icon.png" alt="ToothFairy" width="104" height="104" decoding="async">
+            <div class="meta-list">
+              <div class="meta-item">
+                <span class="meta-label">Name</span>
+                <span class="meta-value">이빨요정/ToothFairy</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Field</span>
+                <span class="meta-value">Webtoon 3D Modeller</span>
+              </div>
+              <div class="meta-item">
+                <span class="meta-label">Based</span>
+                <span class="meta-value">Seoul, Korea</span>
+              </div>
             </div>
           </div>
           <div class="cta-group">
@@ -1222,24 +1283,40 @@
     const slitHeight      = 72;
     const slitElements    = [];
     const BG_LOOP_COPIES  = 3;
-    let bgWrappedScrollTop = 0;
+    const BG_PAD_TOP      = 18;
     let slitPitch = slitHeight + 22;
+    let viewportHeight = 1;
+    let maxScroll = 0;
+    let rafId = null;
 
+    /* ── 배경 스크롤 ──
+       - 화면 세로 중앙 = 파도 정상(crest) — 눈 피로 덜함
+       - 그 라인을 지나는 이미지가 확대, 속도↑ → 파도↑ / 정지 → 0
+    */
+    let bgScroll = 0;
+    let bgVel = 0;
+    let bgPointerDown = false;
+    let bgDragging = false;
+    let bgMoved = false;
+    let bgPressIndex = -1;
+    let bgDragOriginY = 0;
+    let bgDragOriginScroll = 0;
+    let bgLastY = 0;
+    let bgLastTs = 0;
+    let bgPrevScroll = 0;
+    let bgSpeedSmooth = 0; /* 확대용 스무딩된 |스크롤 속도| */
+    let bgSpeedAmtSmooth = 0; /* 확대량 스무딩 — 끊김 방지 */
+    const bgWave = []; /* dataIndex별 파도 높이 0~1 */
+
+    /* 레거시 이름 호환 (다른 코드 참조용) */
     let activeIndex = -1;
     let pressedSlitIndex = -1;
     let pointerDown = false;
     let pointerMoved = false;
-    let scrollVelocity = 0;
-    let rafId = null;
-    let lastPointerY = 0;
-    let maxScroll = 0;
-    let viewportHeight = 1;
     let isDragging = false;
     let scrollTop = 0;
     let targetScrollTop = 0;
-    let dragOriginY = 0;
-    let dragOriginScroll = 0;
-    let lastPointerMoveTs = 0;
+    let scrollVelocity = 0;
 
     const portfolioAssetRoot = (() => {
       const configuredRoot = (
@@ -1519,18 +1596,13 @@
       return slitPitch;
     }
 
-    function getBgLerpFactor() {
-      if (pointerDown && isDragging) return 1;
-      return isMobileLayout() ? 0.55 : 0.18;
-    }
-
     function getItemLerpFactor() {
       if (iPtrDown && iDragging) return 1;
       return isMobileLayout() ? 0.55 : 0.18;
     }
 
     function getDragVelocityFactor() {
-      return isMobileLayout() ? 1.35 : 1.8;
+      return isMobileLayout() ? 1.2 : 1.6;
     }
 
     function getWheelVelocityFactor() {
@@ -1538,17 +1610,37 @@
     }
 
     function getMomentumDecay() {
-      return isMobileLayout() ? 0.92 : 0.9;
-    }
-
-    function syncBgScrollPosition(nextScrollTop) {
-      scrollTop = nextScrollTop;
-      targetScrollTop = nextScrollTop;
+      return isMobileLayout() ? 0.93 : 0.91;
     }
 
     function syncItemScrollPosition(nextScrollTop) {
       iScrollTop = nextScrollTop;
       iTargetScroll = nextScrollTop;
+    }
+
+    function syncBgCompatAliases() {
+      scrollTop = bgScroll;
+      targetScrollTop = bgScroll;
+      scrollVelocity = bgVel;
+      pointerDown = bgPointerDown;
+      pointerMoved = bgMoved;
+      isDragging = bgDragging;
+      pressedSlitIndex = bgPressIndex;
+      /* activeIndex는 호버용 — 누를 때만 press로 갱신 (호버 덮어쓰기 금지) */
+      if (bgPointerDown && bgPressIndex >= 0) activeIndex = bgPressIndex;
+    }
+
+    function hitTestSlitElement(clientX, clientY) {
+      const stack = document.elementsFromPoint(clientX, clientY);
+      for (let i = 0; i < stack.length; i += 1) {
+        const slit = stack[i].closest?.(".slit");
+        if (slit && galleryList.contains(slit)) return slit;
+      }
+      return null;
+    }
+
+    function getBgFocusY() {
+      return Math.max(1, viewportHeight) * 0.5;
     }
 
     function hitTestSlitIndex(clientX, clientY) {
@@ -1677,17 +1769,6 @@
       return Math.min(Math.max(value, min), max);
     }
 
-    function applyActiveState() {
-      const highlightIndex = isMobileLayout()
-        ? (pointerDown && !pointerMoved ? pressedSlitIndex : -1)
-        : activeIndex;
-      slitElements.forEach(({ slit, dataIndex }) => {
-        const on = dataIndex === highlightIndex && highlightIndex >= 0;
-        slit.classList.toggle("is-active", on);
-        slit.style.zIndex = on ? "80" : "";
-      });
-    }
-
     function resizeGallery() {
       syncSlitPitch();
       const rect = galleryStage.getBoundingClientRect();
@@ -1696,84 +1777,137 @@
     }
 
     function updateHover(clientX, clientY) {
-      if (isMobileLayout()) {
-        /* 모바일은 수학 좌표 hover 금지 — 눌린 슬릿만 하이라이트 */
-        activeIndex = pressedSlitIndex;
-        applyActiveState();
-        return;
-      }
-
+      if (isMobileLayout()) return;
       activeIndex = hitTestSlitIndex(clientX, clientY);
-      applyActiveState();
     }
 
-    /* 배경 slitHoverScale lerp 상태 */
-    const slitHoverScales = [];   /* 각 dataIndex 별 현재 hover scale (0~1) */
+    function getScrollExpandAmount(smoothSpeed) {
+      /* 살살(낮은 속도)은 거의 안 커지고, 빠를수록 비례해서 커짐. 하드 컷오프 없음 → 깜빡임 방지 */
+      const t = clamp(smoothSpeed / 22, 0, 1);
+      return t * t; /* 0~1, 저속에서 완만 */
+    }
+
+    function getFocusProximity(centerY, focusY, radius) {
+      const dist = Math.abs(centerY - focusY);
+      if (dist >= radius) return 0;
+      const t = 1 - dist / radius;
+      return t * t;
+    }
 
     function render() {
       const mobile = isMobileLayout();
-      const dragging = pointerDown && isDragging;
-      if (!pointerDown && Math.abs(scrollVelocity) > 0.08) {
-        targetScrollTop += scrollVelocity;
-      }
-      const lerp = getBgLerpFactor();
-      if (lerp >= 0.999) {
-        scrollTop = targetScrollTop;
-      } else {
-        scrollTop += (targetScrollTop - scrollTop) * lerp;
-      }
-      if (!pointerDown) {
-        scrollVelocity *= getMomentumDecay();
-        if (Math.abs(scrollVelocity) < 0.02) scrollVelocity = 0;
-      }
-      const loopSpan = portfolioItems.length * slitPitch;
-      bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
-      galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
+      const count = portfolioItems.length;
+      const loopSpan = count * slitPitch;
 
-      /* 확대 타겟: 데스크톱=hover, 모바일=실제로 누른 슬릿만 */
-      const expandIndex = mobile
-        ? (pointerDown && !pointerMoved ? pressedSlitIndex : -1)
-        : activeIndex;
-      const scaleLerp = mobile ? 0.24 : 0.14;
-      for (let i = 0; i < portfolioItems.length; i++) {
-        const target = (i === expandIndex) ? 1 : 0;
-        slitHoverScales[i] = (slitHoverScales[i] || 0) + (target - (slitHoverScales[i] || 0)) * scaleLerp;
+      /* 1) 스크롤: 드래그 중 1:1, 아니면 관성만 */
+      if (!bgDragging) {
+        bgScroll += bgVel;
+        bgVel *= getMomentumDecay();
+        if (Math.abs(bgVel) < 0.04) bgVel = 0;
       }
 
-      /* 드래그 중엔 이펙트 최소화 → 스크롤 버벅임 감소 */
-      const effectAmp = dragging ? 0 : (mobile ? 0.2 : 1);
-      const padTop = 18;
+      /* 확대용 속도: 프레임 스크롤 변화량을 스무딩 (포인터 vel 노이즈 제거) */
+      const frameDelta = Math.abs(bgScroll - bgPrevScroll);
+      bgPrevScroll = bgScroll;
+      bgSpeedSmooth += (frameDelta - bgSpeedSmooth) * 0.18;
+      if (bgSpeedSmooth < 0.02) bgSpeedSmooth = 0;
+
+      const rawAmt = getScrollExpandAmount(bgSpeedSmooth);
+      bgSpeedAmtSmooth += (rawAmt - bgSpeedAmtSmooth) * (rawAmt > bgSpeedAmtSmooth ? 0.2 : 0.12);
+      if (bgSpeedAmtSmooth < 0.008) bgSpeedAmtSmooth = 0;
+
+      const wrapped = loopSpan ? loopSpan + positiveModulo(bgScroll, loopSpan) : 0;
+      galleryList.style.transform = `translate3d(0, ${-wrapped}px, 0)`;
+      syncBgCompatAliases();
+
+      /* 2) 파도: 화면 세로 중앙 + 스무딩된 속도 비례 */
+      const focusY = getBgFocusY();
+      const speedAmt = bgSpeedAmtSmooth;
+      const sigma = Math.max(slitPitch * 0.55, 40);
+      const pressing = bgPointerDown && !bgMoved && bgPressIndex >= 0;
+      const isScrolling = bgDragging || bgSpeedAmtSmooth > 0.02 || Math.abs(bgVel) > 0.15 || bgSpeedSmooth > 0.25;
+      galleryList.classList.toggle("is-scrolling", isScrolling);
+      const targets = new Array(count).fill(0);
+
+      /* 그랩만 했을 때: 살짝만 (풀 확대 금지) */
+      if (pressing && !isScrolling) targets[bgPressIndex] = 0.12;
+
+      if (speedAmt > 0.001 && count > 0) {
+        for (let copy = 0; copy < BG_LOOP_COPIES; copy += 1) {
+          for (let i = 0; i < count; i += 1) {
+            const renderIndex = copy * count + i;
+            const centerY = BG_PAD_TOP + renderIndex * slitPitch + slitHeight * 0.5 - wrapped;
+            const dist = centerY - focusY;
+            const wave = Math.exp(-(dist * dist) / (2 * sigma * sigma));
+            if (wave > 0.03) {
+              targets[i] = Math.max(targets[i], wave * speedAmt);
+            }
+          }
+        }
+      }
+
+      for (let i = 0; i < count; i += 1) {
+        const cur = bgWave[i] || 0;
+        const next = targets[i];
+        /* 올라갈 때/내려갈 때 모두 부드럽게 — 끊김 제거 */
+        const k = next > cur ? 0.22 : 0.14;
+        bgWave[i] = cur + (next - cur) * k;
+        if (bgWave[i] < 0.004) bgWave[i] = 0;
+      }
+
+      /* 3) 슬릿 그리기 — 컬러는 정적 호버/탭만
+         opacity: 이번 프레임 최확대(wMax)=1, 확대0=minOp, 중간은 비율 보간
+         스크롤 끝나면 dimAmt→0 이라 전부 1로 복귀 */
+      const dimAmt = speedAmt;
+      let wMax = 0;
+      for (let i = 0; i < count; i += 1) wMax = Math.max(wMax, bgWave[i] || 0);
+      const MIN_OP = 0.14; /* 확대 안 된 애 — 낮출수록 최확대가 더 선명 */
 
       slitElements.forEach(({ slit, media, renderIndex, dataIndex }) => {
-        const centerY = padTop + renderIndex * slitPitch + slitHeight / 2 - bgWrappedScrollTop;
+        const centerY = BG_PAD_TOP + renderIndex * slitPitch + slitHeight * 0.5 - wrapped;
         const visibleT = ((centerY / Math.max(viewportHeight, 1)) * 2.0) - 1.0;
-        const hs = slitHoverScales[dataIndex] || 0;
-        const expanding = hs > 0.02;
+        const w = clamp(bgWave[dataIndex] || 0, 0, 1);
+        const expanding = w > 0.02;
+        const colored = !isScrolling && (
+          (pressing && dataIndex === bgPressIndex) ||
+          (!mobile && dataIndex === activeIndex && activeIndex >= 0)
+        );
 
-        if (mobile && !expanding && (visibleT < -1.35 || visibleT > 1.35)) {
-          if (slit.style.transform) slit.style.transform = "";
-          if (media.style.transform) media.style.transform = "";
-          if (slit.style.zIndex && !slit.classList.contains("is-active")) slit.style.zIndex = "";
+        /* 현재 최확대 대비 상대값 (이론상 max 확대 기준 X) */
+        const rel = wMax > 0.02 ? clamp(w / wMax, 0, 1) : 1;
+        const focusOpacity = MIN_OP + (1 - MIN_OP) * rel; /* 최확대=1, 미확대=0.3, 중간=사이 */
+        const opacity = 1 - dimAmt * (1 - focusOpacity);
+        slit.style.opacity = opacity >= 0.995 ? "" : opacity.toFixed(3);
+
+        slit.classList.toggle("is-active", colored);
+
+        if (mobile && !expanding && (visibleT < -1.4 || visibleT > 1.4)) {
+          slit.style.transform = "";
+          media.style.transform = "";
+          slit.style.zIndex = "";
           return;
         }
 
-        const profile = Math.max(-1, Math.min(1, Math.sin(visibleT * 1.5707963)));
-        const depth = Math.abs(profile);
-        const lift = -depth * 8 * effectAmp;
-        const rotateX = dragging ? 0 : (-profile * (5 + Math.abs(scrollVelocity) * 0.03) * effectAmp);
-        const scaleX = 1 - depth * 0.035 * effectAmp;
-        const scaleY = 1 - depth * 0.015 * effectAmp;
-        const mediaShift = dragging ? 0 : (profile * (10 + Math.abs(scrollVelocity) * 0.02) * effectAmp);
+        const dist = centerY - focusY;
+        const phase = clamp(dist / (sigma * 1.6), -1, 1);
+        const crestLift = -w * 12;
+        const sideDip = Math.sin(phase * Math.PI) * w * 3;
+        const scaleY = 1 + w * 0.62;
+        const scaleX = 1 + w * 0.018;
+        const mediaScale = 1.02 + w * 0.08;
+        const hoverBoost = colored ? 1.08 : 1;
 
-        const hScaleY = 1 + hs * 0.72;
-        const hScaleX = 1 + hs * 0.012;
-        const hLift   = hs * -2;
-        const mediaHoverScale = 1.04 + hs * 0.08;
-
-        slit.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
-        slit.style.transform = `translate3d(0, ${lift + hLift}px, 0) rotateX(${rotateX}deg) scale(${scaleX * hScaleX}, ${scaleY * hScaleY})`;
-        slit.style.filter = "";
-        media.style.transform = `translate3d(0, ${mediaShift}px, 0) scale(${mediaHoverScale})`;
+        slit.style.zIndex = expanding ? String(90 + Math.round(w * 30)) : (colored ? "80" : "");
+        if (expanding) {
+          slit.style.transform = `translate3d(0, ${crestLift + sideDip}px, 0) scale(${scaleX}, ${scaleY})`;
+          media.style.transform = `scale(${mediaScale})`;
+        } else if (colored) {
+          slit.style.transform = `scale(1.02, ${hoverBoost})`;
+          media.style.transform = "scale(1.04)";
+        } else {
+          slit.style.transform = "";
+          media.style.transform = "";
+        }
       });
 
       rafId = requestAnimationFrame(render);
@@ -2028,6 +2162,7 @@
     let iViewH = 1, iMaxScroll = 0, iRafId = null;
     let iActiveIdx = -1;
     let pressedItemEntry = null;
+    let hoveredItemEntry = null;
     let iPtrDown=false, iPtrMoved=false, iDragging=false;
     let iDragY0=0, iLastY=0, iDragScroll0=0;
     let iLastMoveTs = 0;
@@ -2045,87 +2180,43 @@
 
     function renderItemView(){
       const mobile = isMobileLayout();
-      const dragging = iPtrDown && iDragging;
-      if (!iPtrDown && Math.abs(iScrollVel) > 0.08) {
-        iTargetScroll += iScrollVel;
-      }
-      const lerp = getItemLerpFactor();
-      if (lerp >= 0.999) {
-        iScrollTop = iTargetScroll;
-      } else {
-        iScrollTop += (iTargetScroll - iScrollTop) * lerp;
-      }
-      if (!iPtrDown) {
-        iScrollVel *= getMomentumDecay();
-        if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
-      }
 
-      const flowTilt  = dragging ? 0 : Math.max(-7,  Math.min(7,  iScrollVel * 0.035)) * (mobile ? 0.25 : 1);
-      const flowDrift = dragging ? 0 : Math.max(-12, Math.min(12, iScrollVel * 0.06)) * (mobile ? 0.25 : 1);
+      /* 스크롤: 드래그 중 1:1, 아니면 관성만 — 보간/3D 이펙트 없음 */
+      if (!iDragging) {
+        iScrollTop += iScrollVel;
+        iTargetScroll = iScrollTop;
+        iScrollVel *= getMomentumDecay();
+        if (Math.abs(iScrollVel) < 0.04) iScrollVel = 0;
+      } else {
+        iTargetScroll = iScrollTop;
+      }
 
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
       const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
-
       const wrap = document.getElementById("itemWrap");
-      if(wrap) wrap.style.transform = "translate3d(0," + wrapTranslateY + "px,0)";
+      if (wrap) wrap.style.transform = "translate3d(0," + wrapTranslateY + "px,0)";
+      itemCols.forEach((col) => { if (col) col.style.transform = ""; });
 
-      itemCols.forEach(col => { if(col) col.style.transform = ""; });
-
-      const pressedEl = pressedItemEntry?.el || null;
-      itemRegistry.forEach((entry) => {
-        const active = mobile
-          ? Boolean(iPtrDown && !iPtrMoved && pressedEl && entry.el === pressedEl)
-          : (iActiveIdx >= 0 && entry.dataIndex === iActiveIdx);
-        entry.el.classList.toggle("is-active", active);
-        entry.el.style.zIndex = active ? "80" : "";
-      });
-
-      const effectAmp = dragging ? 0 : (mobile ? 0.18 : 1);
-      const scaleLerp = mobile ? 0.26 : 0.12;
+      const pressedEl = (iPtrDown && !iPtrMoved) ? pressedItemEntry?.el : null;
+      const hoverEl = (!mobile && !iDragging) ? hoveredItemEntry?.el : null;
+      const activeEl = pressedEl || hoverEl;
 
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
-        const cardScreenY = entry.topAbs + wrapTranslateY + itemWrapTop + entry.height * 0.5;
-        const visT = (cardScreenY / iViewH) * 2.0 - 1.0;
-
-        const isHovered = !mobile && (entry.dataIndex === iActiveIdx);
-        const isPressed = mobile && iPtrDown && !iPtrMoved && entry.el === pressedEl;
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (((isHovered || isPressed) ? 1 : 0) - (itemHoverScales[idx] || 0)) * scaleLerp;
+        const on = activeEl && entry.el === activeEl;
+        const target = on ? 1 : 0;
+        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (target - (itemHoverScales[idx] || 0)) * 0.28;
         const hs = itemHoverScales[idx];
         const expanding = hs > 0.02;
 
-        if(visT < -1.6 || visT > 1.6){
-          if (expanding) {
-            card.style.zIndex = String(80 + Math.round(hs * 20));
-            card.style.transform = "scale(" + (1 + hs * (mobile ? 0.2 : 0.12)).toFixed(4) + ")";
-          } else {
-            card.style.transform = "";
-            if (!card.classList.contains("is-active")) card.style.zIndex = "";
-          }
-          return;
+        card.classList.toggle("is-active", on || hs > 0.25);
+        if (expanding) {
+          card.style.zIndex = String(90 + Math.round(hs * 20));
+          card.style.transform = "scale(" + (1 + hs * 0.14).toFixed(4) + ")";
+        } else {
+          card.style.transform = "";
+          card.style.zIndex = "";
         }
-
-        if (mobile) {
-          const pressScale = 1 + hs * 0.2;
-          card.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
-          card.style.transform = pressScale > 1.002 ? "scale(" + pressScale.toFixed(4) + ")" : "";
-          return;
-        }
-
-        const normalized  = Math.max(-1, Math.min(1, visT));
-        const depth       = Math.abs(normalized);
-        const colPhase    = entry.colIdx - ((activeItemColCount - 1) * 0.5);
-        const lift        = (-depth * 10 - hs * 8) * effectAmp;
-        const driftX      = (colPhase * 3 + flowDrift * 0.22) * effectAmp;
-        const driftY      = normalized * -6 * effectAmp;
-        const rotX        = ((normalized * -5) + (flowTilt * 0.45)) * effectAmp;
-        const rotZ        = ((colPhase * 0.55) + (flowTilt * 0.18)) * effectAmp;
-        const finalScale  = (1 - depth * 0.025 * effectAmp) + hs * 0.12;
-
-        card.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
-        card.style.transform =
-          "perspective(520px) translate3d(" + driftX + "px," + (lift + driftY) + "px,0)" +
-          " rotateX(" + rotX + "deg) rotateZ(" + rotZ + "deg) scale(" + finalScale.toFixed(4) + ")";
       });
 
       iRafId = requestAnimationFrame(renderItemView);
@@ -2144,11 +2235,12 @@
 
     function updateItemHover(cx, cy){
       if (isMobileLayout()) {
+        hoveredItemEntry = null;
         iActiveIdx = pressedItemEntry ? pressedItemEntry.dataIndex : -1;
         return;
       }
-      const hit = hitTestItemEntry(cx, cy);
-      iActiveIdx = hit ? hit.dataIndex : -1;
+      hoveredItemEntry = hitTestItemEntry(cx, cy);
+      iActiveIdx = hoveredItemEntry ? hoveredItemEntry.dataIndex : -1;
     }
 
     /* ── 이벤트 ── */
@@ -2157,18 +2249,20 @@
 
       iv.addEventListener("wheel", e=>{
         e.preventDefault();
-        iTargetScroll += e.deltaY;
-        iScrollVel += e.deltaY * getWheelVelocityFactor();
+        iScrollTop += e.deltaY;
+        iTargetScroll = iScrollTop;
+        iScrollVel = e.deltaY * getWheelVelocityFactor() + iScrollVel * 0.35;
       },{passive:false});
 
       iv.addEventListener("pointerdown", e=>{
         if(e.button!==0) return;
         iPtrDown=true; iPtrMoved=false; iDragging=false;
         iScrollVel = 0;
-        syncItemScrollPosition(iScrollTop);
         iDragY0=e.clientY; iLastY=e.clientY; iLastMoveTs = performance.now();
         iDragScroll0=iScrollTop;
+        iTargetScroll=iScrollTop;
         pressedItemEntry = hitTestItemEntry(e.clientX, e.clientY);
+        hoveredItemEntry = pressedItemEntry;
         iActiveIdx = pressedItemEntry ? pressedItemEntry.dataIndex : -1;
         iv.setPointerCapture(e.pointerId);
         iv.classList.add("is-dragging");
@@ -2185,20 +2279,16 @@
           iPtrMoved=true;
           iDragging=true;
           pressedItemEntry = null;
+          hoveredItemEntry = null;
           iActiveIdx = -1;
         }
         if(iDragging){
           e.preventDefault();
-          const nextScroll = iDragScroll0 - dy;
-          if (isMobileLayout()) {
-            syncItemScrollPosition(nextScroll);
-          } else {
-            iTargetScroll = nextScroll;
-          }
+          iScrollTop = iDragScroll0 - dy;
+          iTargetScroll = iScrollTop;
           const now = performance.now();
           const dt = Math.max(8, now - iLastMoveTs);
-          const frameVel = ((iLastY - e.clientY) / dt) * 16.67;
-          iScrollVel = (frameVel * getDragVelocityFactor()) + (iScrollVel * 0.2);
+          iScrollVel = ((iLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
           iLastY = e.clientY;
           iLastMoveTs = now;
         }
@@ -2210,7 +2300,10 @@
         }
         iPtrDown=false; iDragging=false;
         pressedItemEntry = null;
-        if (isMobileLayout()) iActiveIdx = -1;
+        if (isMobileLayout()) {
+          hoveredItemEntry = null;
+          iActiveIdx = -1;
+        }
         iv.classList.remove("is-dragging");
         if(e && iv.hasPointerCapture(e.pointerId)) iv.releasePointerCapture(e.pointerId);
       }
@@ -2218,10 +2311,15 @@
       iv.addEventListener("pointercancel",endPtr);
       iv.addEventListener("pointerleave", ()=>{
         if (!isMobileLayout()) {
-          iActiveIdx=-1;
-          itemRegistry.forEach(entry => entry.el.classList.remove("is-active"));
+          iActiveIdx = -1;
+          hoveredItemEntry = null;
         }
-        if(iPtrDown){ iPtrDown=false; iv.classList.remove("is-dragging"); pressedItemEntry=null; }
+        if (iPtrDown) {
+          iPtrDown = false;
+          iDragging = false;
+          pressedItemEntry = null;
+          iv.classList.remove("is-dragging");
+        }
       });
     })();
 
@@ -2369,92 +2467,83 @@
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
-      targetScrollTop += e.deltaY;
-      scrollVelocity += e.deltaY * getWheelVelocityFactor();
+      bgScroll += e.deltaY;
+      bgVel = e.deltaY * getWheelVelocityFactor() + bgVel * 0.4;
+      syncBgCompatAliases();
     }, { passive: false });
 
     galleryStage.addEventListener("pointerdown", (e) => {
       if (e.button !== 0) return;
-      isDragging = false;
-      pointerDown = true;
-      pointerMoved = false;
-      scrollVelocity = 0;
-      syncBgScrollPosition(scrollTop);
-      dragOriginY = e.clientY;
-      lastPointerY = e.clientY;
-      lastPointerMoveTs = performance.now();
-      dragOriginScroll = scrollTop;
-      pressedSlitIndex = hitTestSlitIndex(e.clientX, e.clientY);
-      activeIndex = pressedSlitIndex;
+      bgPointerDown = true;
+      bgMoved = false;
+      bgDragging = false;
+      bgVel = 0;
+      bgSpeedSmooth *= 0.3;
+      bgSpeedAmtSmooth *= 0.3;
+      bgDragOriginY = e.clientY;
+      bgLastY = e.clientY;
+      bgLastTs = performance.now();
+      bgDragOriginScroll = bgScroll;
+      bgPrevScroll = bgScroll;
+      bgPressIndex = hitTestSlitIndex(e.clientX, e.clientY);
+      syncBgCompatAliases();
       galleryStage.setPointerCapture(e.pointerId);
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
-      applyActiveState();
     });
 
     galleryStage.addEventListener("pointermove", (e) => {
-      if (!pointerDown) {
+      if (!bgPointerDown) {
         if (!isMobileLayout()) updateHover(e.clientX, e.clientY);
         return;
       }
 
-      const dy = e.clientY - dragOriginY;
+      const dy = e.clientY - bgDragOriginY;
       const moveThreshold = isMobileLayout() ? 6 : 3;
       if (Math.abs(dy) > moveThreshold) {
-        pointerMoved = true;
-        isDragging = true;
-        pressedSlitIndex = -1;
-        activeIndex = -1;
-        applyActiveState();
+        bgMoved = true;
+        bgDragging = true;
+        bgPressIndex = -1;
       }
 
-      if (isDragging) {
+      if (bgDragging) {
         e.preventDefault();
-        const nextScroll = dragOriginScroll - dy;
-        if (isMobileLayout()) {
-          syncBgScrollPosition(nextScroll);
-        } else {
-          targetScrollTop = nextScroll;
-        }
+        /* 손가락 1:1 — 확대 기준은 화면 중앙 고정 */
+        bgScroll = bgDragOriginScroll - dy;
         const now = performance.now();
-        const dt = Math.max(8, now - lastPointerMoveTs);
-        const frameVel = ((lastPointerY - e.clientY) / dt) * 16.67;
-        scrollVelocity = (frameVel * getDragVelocityFactor()) + (scrollVelocity * 0.2);
-        lastPointerY = e.clientY;
-        lastPointerMoveTs = now;
-      } else if (!isMobileLayout()) {
-        updateHover(e.clientX, e.clientY);
+        const dt = Math.max(8, now - bgLastTs);
+        const instantVel = ((bgLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
+        bgVel = instantVel * 0.55 + bgVel * 0.45;
+        bgLastY = e.clientY;
+        bgLastTs = now;
+        syncBgCompatAliases();
       }
     });
 
     function endPointer(e) {
-      if (pointerDown && !pointerMoved && pressedSlitIndex >= 0) {
-        openSlit(portfolioItems[pressedSlitIndex]);
+      if (bgPointerDown && !bgMoved && bgPressIndex >= 0) {
+        openSlit(portfolioItems[bgPressIndex]);
       }
-      pointerDown = false;
-      pressedSlitIndex = -1;
-      if (isMobileLayout()) {
-        activeIndex = -1;
-        applyActiveState();
-      }
+      bgPointerDown = false;
+      bgDragging = false;
+      bgPressIndex = -1;
+      syncBgCompatAliases();
       galleryScroll.classList.remove("is-dragging");
       document.body.classList.remove("dragging-gallery");
       if (e && galleryStage.hasPointerCapture(e.pointerId)) {
         galleryStage.releasePointerCapture(e.pointerId);
       }
-      setTimeout(() => { isDragging = false; }, 40);
     }
 
     galleryStage.addEventListener("pointerup", endPointer);
     galleryStage.addEventListener("pointercancel", endPointer);
     galleryStage.addEventListener("pointerleave", () => {
-      if (!isMobileLayout()) {
-        activeIndex = -1;
-        applyActiveState();
-      }
-      if (pointerDown) {
-        pointerDown = false;
-        pressedSlitIndex = -1;
+      if (!isMobileLayout()) activeIndex = -1;
+      if (bgPointerDown) {
+        bgPointerDown = false;
+        bgDragging = false;
+        bgPressIndex = -1;
+        syncBgCompatAliases();
         galleryScroll.classList.remove("is-dragging");
         document.body.classList.remove("dragging-gallery");
       }
