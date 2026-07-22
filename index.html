@@ -1611,15 +1611,24 @@
     }
 
     function getDragVelocityFactor() {
-      return isMobileLayout() ? 1.55 : 1.6;
+      return isMobileLayout() ? 2.15 : 1.6;
     }
 
     function getWheelVelocityFactor() {
-      return isMobileLayout() ? 0.7 : 0.7;
+      return isMobileLayout() ? 0.85 : 0.7;
     }
 
     function getMomentumDecay() {
-      return isMobileLayout() ? 0.91 : 0.91;
+      return isMobileLayout() ? 0.935 : 0.91;
+    }
+
+    /* 모바일 손가락 이동 → 콘텐츠 배율 (데스크톱 휠 체감에 맞춤) */
+    function getBgScrollGain() {
+      return isMobileLayout() ? 1.55 : 1;
+    }
+
+    function getItemScrollGain() {
+      return isMobileLayout() ? 1.45 : 1;
     }
 
     function syncItemScrollPosition(nextScrollTop) {
@@ -1804,36 +1813,44 @@
     }
 
     let bgWasScrolling = false;
+    let bgFxFrame = 0;
+
+    function clearBgSlitFx() {
+      for (let s = 0; s < slitElements.length; s += 1) {
+        const { slit, media } = slitElements[s];
+        if (slit.dataset.vis === "0") continue;
+        slit.style.transform = "";
+        slit.style.opacity = "";
+        slit.style.zIndex = "";
+        media.style.transform = "";
+        slit.classList.remove("is-active");
+        slit.dataset.vis = "0";
+      }
+      for (let i = 0; i < bgWave.length; i += 1) bgWave[i] = 0;
+      bgSpeedAmtSmooth = 0;
+    }
 
     function render() {
       const mobile = isMobileLayout();
       const count = portfolioItems.length;
       const loopSpan = count * slitPitch;
-      const decay = mobile ? 0.91 : 0.91;
 
-      /* 1) 스크롤: 드래그 중 1:1, 아니면 관성만 */
+      /* 1) 스크롤: 드래그 중은 입력 경로에서 직접 갱신, 아니면 관성 */
       if (!bgDragging) {
         bgScroll += bgVel;
-        bgVel *= decay;
-        if (Math.abs(bgVel) < 0.05) bgVel = 0;
+        bgVel *= getMomentumDecay();
+        if (Math.abs(bgVel) < 0.06) bgVel = 0;
       }
 
       const frameDelta = Math.abs(bgScroll - bgPrevScroll);
       bgPrevScroll = bgScroll;
-      bgSpeedSmooth += (frameDelta - bgSpeedSmooth) * (mobile ? 0.28 : 0.18);
+      bgSpeedSmooth += (frameDelta - bgSpeedSmooth) * (mobile ? 0.35 : 0.18);
       if (bgSpeedSmooth < 0.02) bgSpeedSmooth = 0;
-
-      const rawAmt = getScrollExpandAmount(bgSpeedSmooth);
-      bgSpeedAmtSmooth += (rawAmt - bgSpeedAmtSmooth) * (rawAmt > bgSpeedAmtSmooth ? (mobile ? 0.28 : 0.2) : (mobile ? 0.16 : 0.12));
-      if (bgSpeedAmtSmooth < 0.008) bgSpeedAmtSmooth = 0;
 
       const wrapped = loopSpan ? loopSpan + positiveModulo(bgScroll, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-wrapped}px, 0)`;
       syncBgCompatAliases();
 
-      const focusY = getBgFocusY();
-      const speedAmt = bgSpeedAmtSmooth;
-      const sigma = Math.max(slitPitch * (mobile ? 0.48 : 0.55), 36);
       const pressing = bgPointerDown && !bgMoved && bgPressIndex >= 0;
       const isScrolling = bgDragging || bgSpeedAmtSmooth > 0.02 || Math.abs(bgVel) > 0.15 || bgSpeedSmooth > 0.25;
       if (isScrolling !== bgWasScrolling) {
@@ -1841,13 +1858,42 @@
         bgWasScrolling = isScrolling;
       }
 
-      /* 2) 파도: dataIndex만 계산 (카피 루프 최소화) */
+      /*
+        모바일 드래그 중: 파도/opacity DOM 갱신 전부 스킵.
+        (이게 프레임 드랍 → 스크롤이 느린 것처럼 느껴지는 주원인)
+        이펙트는 손을 뗀 뒤 관성 구간에만 적용.
+      */
+      if (mobile && bgDragging) {
+        if (bgFxFrame !== -1) {
+          clearBgSlitFx();
+          bgFxFrame = -1;
+        }
+        const rawAmt = getScrollExpandAmount(bgSpeedSmooth);
+        bgSpeedAmtSmooth = rawAmt;
+        rafId = requestAnimationFrame(render);
+        return;
+      }
+
+      const rawAmt = getScrollExpandAmount(bgSpeedSmooth);
+      bgSpeedAmtSmooth += (rawAmt - bgSpeedAmtSmooth) * (rawAmt > bgSpeedAmtSmooth ? (mobile ? 0.32 : 0.2) : (mobile ? 0.18 : 0.12));
+      if (bgSpeedAmtSmooth < 0.008) bgSpeedAmtSmooth = 0;
+
+      /* 모바일 관성: 이펙트는 2프레임에 1번만 갱신 */
+      bgFxFrame += 1;
+      if (mobile && !pressing && bgFxFrame % 2 === 1 && bgSpeedAmtSmooth > 0.02) {
+        rafId = requestAnimationFrame(render);
+        return;
+      }
+
+      const focusY = getBgFocusY();
+      const speedAmt = bgSpeedAmtSmooth;
+      const sigma = Math.max(slitPitch * (mobile ? 0.45 : 0.55), 36);
       const targets = new Array(count).fill(0);
       if (pressing && !isScrolling && bgPressIndex >= 0) targets[bgPressIndex] = 0.12;
 
       if (speedAmt > 0.001 && count > 0) {
         const invTwoSigma = 1 / (2 * sigma * sigma);
-        const viewPad = mobile ? 160 : 280;
+        const viewPad = mobile ? 140 : 280;
         for (let i = 0; i < count; i += 1) {
           let best = 0;
           for (let copy = 0; copy < BG_LOOP_COPIES; copy += 1) {
@@ -1865,16 +1911,15 @@
       for (let i = 0; i < count; i += 1) {
         const cur = bgWave[i] || 0;
         const next = targets[i];
-        const k = next > cur ? (mobile ? 0.3 : 0.22) : (mobile ? 0.18 : 0.14);
+        const k = next > cur ? (mobile ? 0.34 : 0.22) : (mobile ? 0.2 : 0.14);
         const v = cur + (next - cur) * k;
         bgWave[i] = v < 0.004 ? 0 : v;
         if (bgWave[i] > wMax) wMax = bgWave[i];
       }
 
-      /* 3) 보이는 슬릿만 스타일 갱신 — 모바일 렉 핵심 완화 */
       const dimAmt = speedAmt;
       const MIN_OP = 0.14;
-      const cullPad = mobile ? 100 : 180;
+      const cullPad = mobile ? 80 : 180;
       const len = slitElements.length;
 
       for (let s = 0; s < len; s += 1) {
@@ -1908,12 +1953,12 @@
         slit.classList.toggle("is-active", colored);
 
         if (expanding) {
-          const crestLift = -w * (mobile ? 10 : 12);
-          const scaleY = 1 + w * (mobile ? 0.55 : 0.62);
-          const scaleX = 1 + w * 0.016;
+          const crestLift = -w * (mobile ? 9 : 12);
+          const scaleY = 1 + w * (mobile ? 0.5 : 0.62);
+          const scaleX = 1 + w * 0.014;
           slit.style.zIndex = String(90 + (w * 30 | 0));
-          slit.style.transform = "translate3d(0," + crestLift.toFixed(2) + "px,0) scale(" + scaleX.toFixed(3) + "," + scaleY.toFixed(3) + ")";
-          media.style.transform = mobile ? "" : "scale(" + (1.02 + w * 0.08).toFixed(3) + ")";
+          slit.style.transform = "translate3d(0," + crestLift.toFixed(1) + "px,0) scale(" + scaleX.toFixed(3) + "," + scaleY.toFixed(3) + ")";
+          media.style.transform = "";
         } else if (colored) {
           slit.style.zIndex = "80";
           slit.style.transform = "scale(1.02,1.08)";
@@ -2327,12 +2372,13 @@
         }
         if(iDragging){
           e.preventDefault();
-          iScrollTop = iDragScroll0 - dy;
+          const gain = getItemScrollGain();
+          iScrollTop = iDragScroll0 - dy * gain;
           iTargetScroll = iScrollTop;
           const now = performance.now();
           const dt = Math.max(8, now - iLastMoveTs);
-          const instant = ((iLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
-          iScrollVel = instant * 0.6 + iScrollVel * 0.4;
+          const instant = ((iLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor() * gain;
+          iScrollVel = instant * 0.75 + iScrollVel * 0.25;
           iLastY = e.clientY;
           iLastMoveTs = now;
         }
@@ -2552,12 +2598,12 @@
 
       if (bgDragging) {
         e.preventDefault();
-        /* 손가락 1:1 — 확대 기준은 화면 중앙 고정 */
-        bgScroll = bgDragOriginScroll - dy;
+        const gain = getBgScrollGain();
+        bgScroll = bgDragOriginScroll - dy * gain;
         const now = performance.now();
         const dt = Math.max(8, now - bgLastTs);
-        const instantVel = ((bgLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
-        bgVel = instantVel * 0.55 + bgVel * 0.45;
+        const instantVel = ((bgLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor() * gain;
+        bgVel = instantVel * 0.75 + bgVel * 0.25;
         bgLastY = e.clientY;
         bgLastTs = now;
         syncBgCompatAliases();
