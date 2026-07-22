@@ -11,7 +11,7 @@
   <title>포트폴리오</title>
   <style>
     :root {
-      --bg: #111111;
+      --bg: #ffffff;
       --panel: rgba(255, 255, 255, 0.92);
       --text: #171717;
       --muted: #767676;
@@ -65,7 +65,6 @@
       grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
       gap: 24px;
       align-items: stretch;
-      background: #111111;
     }
 
     .intro {
@@ -292,7 +291,7 @@
       /* perspective는 JS에서 카드별로 직접 적용 */
     }
     .item-card.is-active {
-      z-index: 2;
+      z-index: 80;
     }
     .item-card img {
       position: absolute;
@@ -301,7 +300,7 @@
       height: 100%;
       display: block;
       object-fit: cover;
-      filter: grayscale(1) saturate(0.72) brightness(0.92);
+      filter: grayscale(0.55) saturate(0.9) brightness(1.06);
       opacity: 0;
       transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
@@ -309,11 +308,11 @@
       -webkit-user-drag: none;
     }
     .item-card img.is-loaded {
-      opacity: 0.95;
+      opacity: 1;
     }
     .item-card.is-active img,
     .item-card:hover img {
-      filter: grayscale(0) saturate(1) brightness(1);
+      filter: grayscale(0) saturate(1) brightness(1.08);
     }
     .item-card-ph {
       position: absolute;
@@ -498,7 +497,7 @@
 
     .slit.is-active {
       box-shadow: 0 18px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.08);
-      z-index: 2;
+      z-index: 80;
     }
 
     .slit-num {
@@ -529,16 +528,16 @@
       transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
       pointer-events: none;
-      filter: grayscale(1) saturate(0.72) brightness(0.92) contrast(1);
+      filter: grayscale(0.55) saturate(0.9) brightness(1.06) contrast(1.02);
       opacity: 0;
     }
     .slit img.is-loaded {
-      opacity: 0.95;
+      opacity: 1;
     }
 
     .gallery:hover .slit:hover img,
     .slit.is-active img {
-      filter: grayscale(0) saturate(1) brightness(1) contrast(1);
+      filter: grayscale(0) saturate(1) brightness(1.08) contrast(1.02);
       opacity: 1;
     }
 
@@ -806,7 +805,8 @@
         will-change: auto;
       }
 
-      .gallery {
+      .gallery,
+      .item-masonry-wrap {
         will-change: transform;
       }
 
@@ -833,7 +833,7 @@
         overscroll-behavior-y: none;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: y mandatory;
-        background: #111;
+        background: #111111;
       }
 
       .intro {
@@ -1682,7 +1682,9 @@
         ? (pointerDown && !pointerMoved ? pressedSlitIndex : -1)
         : activeIndex;
       slitElements.forEach(({ slit, dataIndex }) => {
-        slit.classList.toggle("is-active", dataIndex === highlightIndex);
+        const on = dataIndex === highlightIndex && highlightIndex >= 0;
+        slit.classList.toggle("is-active", on);
+        slit.style.zIndex = on ? "80" : "";
       });
     }
 
@@ -1710,6 +1712,7 @@
 
     function render() {
       const mobile = isMobileLayout();
+      const dragging = pointerDown && isDragging;
       if (!pointerDown && Math.abs(scrollVelocity) > 0.08) {
         targetScrollTop += scrollVelocity;
       }
@@ -1727,43 +1730,48 @@
       bgWrappedScrollTop = loopSpan ? loopSpan + positiveModulo(scrollTop, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-bgWrappedScrollTop}px, 0)`;
 
-      /* hover scale: 데스크톱만. 모바일은 좌표 어긋남/버벅임 원인 */
-      if (!mobile) {
-        for (let i = 0; i < portfolioItems.length; i++) {
-          const target = (i === activeIndex) ? 1 : 0;
-          slitHoverScales[i] = (slitHoverScales[i] || 0) + (target - (slitHoverScales[i] || 0)) * 0.14;
-        }
+      /* 확대 타겟: 데스크톱=hover, 모바일=실제로 누른 슬릿만 */
+      const expandIndex = mobile
+        ? (pointerDown && !pointerMoved ? pressedSlitIndex : -1)
+        : activeIndex;
+      const scaleLerp = mobile ? 0.24 : 0.14;
+      for (let i = 0; i < portfolioItems.length; i++) {
+        const target = (i === expandIndex) ? 1 : 0;
+        slitHoverScales[i] = (slitHoverScales[i] || 0) + (target - (slitHoverScales[i] || 0)) * scaleLerp;
       }
 
-      const effectAmp = mobile ? 0.28 : 1;
+      /* 드래그 중엔 이펙트 최소화 → 스크롤 버벅임 감소 */
+      const effectAmp = dragging ? 0 : (mobile ? 0.2 : 1);
       const padTop = 18;
 
       slitElements.forEach(({ slit, media, renderIndex, dataIndex }) => {
         const centerY = padTop + renderIndex * slitPitch + slitHeight / 2 - bgWrappedScrollTop;
         const visibleT = ((centerY / Math.max(viewportHeight, 1)) * 2.0) - 1.0;
+        const hs = slitHoverScales[dataIndex] || 0;
+        const expanding = hs > 0.02;
 
-        if (mobile && (visibleT < -1.4 || visibleT > 1.4)) {
+        if (mobile && !expanding && (visibleT < -1.35 || visibleT > 1.35)) {
           if (slit.style.transform) slit.style.transform = "";
           if (media.style.transform) media.style.transform = "";
+          if (slit.style.zIndex && !slit.classList.contains("is-active")) slit.style.zIndex = "";
           return;
         }
 
         const profile = Math.max(-1, Math.min(1, Math.sin(visibleT * 1.5707963)));
         const depth = Math.abs(profile);
         const lift = -depth * 8 * effectAmp;
-        const rotateX = -profile * (5 + Math.abs(scrollVelocity) * 0.03) * effectAmp;
+        const rotateX = dragging ? 0 : (-profile * (5 + Math.abs(scrollVelocity) * 0.03) * effectAmp);
         const scaleX = 1 - depth * 0.035 * effectAmp;
         const scaleY = 1 - depth * 0.015 * effectAmp;
-        const mediaShift = profile * (10 + Math.abs(scrollVelocity) * 0.02) * effectAmp;
+        const mediaShift = dragging ? 0 : (profile * (10 + Math.abs(scrollVelocity) * 0.02) * effectAmp);
 
-        const hs = mobile ? 0 : (slitHoverScales[dataIndex] || 0);
         const hScaleY = 1 + hs * 0.72;
         const hScaleX = 1 + hs * 0.012;
         const hLift   = hs * -2;
         const mediaHoverScale = 1.04 + hs * 0.08;
-        const pressBoost = (mobile && dataIndex === pressedSlitIndex && pointerDown && !pointerMoved) ? 1.04 : 1;
 
-        slit.style.transform = `translate3d(0, ${lift + hLift}px, 0) rotateX(${rotateX}deg) scale(${scaleX * hScaleX * pressBoost}, ${scaleY * hScaleY * pressBoost})`;
+        slit.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
+        slit.style.transform = `translate3d(0, ${lift + hLift}px, 0) rotateX(${rotateX}deg) scale(${scaleX * hScaleX}, ${scaleY * hScaleY})`;
         slit.style.filter = "";
         media.style.transform = `translate3d(0, ${mediaShift}px, 0) scale(${mediaHoverScale})`;
       });
@@ -2037,6 +2045,7 @@
 
     function renderItemView(){
       const mobile = isMobileLayout();
+      const dragging = iPtrDown && iDragging;
       if (!iPtrDown && Math.abs(iScrollVel) > 0.08) {
         iTargetScroll += iScrollVel;
       }
@@ -2051,8 +2060,8 @@
         if (Math.abs(iScrollVel) < 0.02) iScrollVel = 0;
       }
 
-      const flowTilt  = Math.max(-7,  Math.min(7,  iScrollVel * 0.035)) * (mobile ? 0.35 : 1);
-      const flowDrift = Math.max(-12, Math.min(12, iScrollVel * 0.06)) * (mobile ? 0.35 : 1);
+      const flowTilt  = dragging ? 0 : Math.max(-7,  Math.min(7,  iScrollVel * 0.035)) * (mobile ? 0.25 : 1);
+      const flowDrift = dragging ? 0 : Math.max(-12, Math.min(12, iScrollVel * 0.06)) * (mobile ? 0.25 : 1);
 
       const wrappedScroll = positiveModulo(iScrollTop, itemLoopSpan);
       const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
@@ -2068,9 +2077,11 @@
           ? Boolean(iPtrDown && !iPtrMoved && pressedEl && entry.el === pressedEl)
           : (iActiveIdx >= 0 && entry.dataIndex === iActiveIdx);
         entry.el.classList.toggle("is-active", active);
+        entry.el.style.zIndex = active ? "80" : "";
       });
 
-      const effectAmp = mobile ? 0.22 : 1;
+      const effectAmp = dragging ? 0 : (mobile ? 0.18 : 1);
+      const scaleLerp = mobile ? 0.26 : 0.12;
 
       itemRegistry.forEach((entry, idx) => {
         const card = entry.el;
@@ -2078,17 +2089,25 @@
         const visT = (cardScreenY / iViewH) * 2.0 - 1.0;
 
         const isHovered = !mobile && (entry.dataIndex === iActiveIdx);
-        const isPressed = mobile && entry.el === pressedEl;
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (((isHovered || isPressed) ? 1 : 0) - (itemHoverScales[idx] || 0)) * (mobile ? 0.28 : 0.12);
+        const isPressed = mobile && iPtrDown && !iPtrMoved && entry.el === pressedEl;
+        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (((isHovered || isPressed) ? 1 : 0) - (itemHoverScales[idx] || 0)) * scaleLerp;
         const hs = itemHoverScales[idx];
+        const expanding = hs > 0.02;
 
         if(visT < -1.6 || visT > 1.6){
-          card.style.transform = hs > 0.002 ? "scale(" + (1 + hs * (mobile ? 0.06 : 0.12)).toFixed(4) + ")" : "";
+          if (expanding) {
+            card.style.zIndex = String(80 + Math.round(hs * 20));
+            card.style.transform = "scale(" + (1 + hs * (mobile ? 0.2 : 0.12)).toFixed(4) + ")";
+          } else {
+            card.style.transform = "";
+            if (!card.classList.contains("is-active")) card.style.zIndex = "";
+          }
           return;
         }
 
         if (mobile) {
-          const pressScale = 1 + hs * 0.06;
+          const pressScale = 1 + hs * 0.2;
+          card.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
           card.style.transform = pressScale > 1.002 ? "scale(" + pressScale.toFixed(4) + ")" : "";
           return;
         }
@@ -2103,6 +2122,7 @@
         const rotZ        = ((colPhase * 0.55) + (flowTilt * 0.18)) * effectAmp;
         const finalScale  = (1 - depth * 0.025 * effectAmp) + hs * 0.12;
 
+        card.style.zIndex = expanding ? String(80 + Math.round(hs * 20)) : "";
         card.style.transform =
           "perspective(520px) translate3d(" + driftX + "px," + (lift + driftY) + "px,0)" +
           " rotateX(" + rotX + "deg) rotateZ(" + rotZ + "deg) scale(" + finalScale.toFixed(4) + ")";
