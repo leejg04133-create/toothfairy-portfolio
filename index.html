@@ -569,6 +569,10 @@
       opacity: 0.95;
     }
 
+    .gallery.is-scrolling .slit img {
+      transition: none;
+    }
+
     /* 클릭 확대 오버레이 */
     .slit-expand-overlay {
       position: fixed;
@@ -935,9 +939,14 @@
       }
 
       .cta-group {
+        width: 100%;
         margin-top: 16px;
         padding-top: 0;
-        justify-content: flex-start;
+        justify-content: flex-end;
+      }
+
+      .cta-group .btn {
+        margin-left: auto;
       }
 
       .gallery-wrap {
@@ -1602,15 +1611,15 @@
     }
 
     function getDragVelocityFactor() {
-      return isMobileLayout() ? 1.2 : 1.6;
+      return isMobileLayout() ? 1.55 : 1.6;
     }
 
     function getWheelVelocityFactor() {
-      return isMobileLayout() ? 0.55 : 0.7;
+      return isMobileLayout() ? 0.7 : 0.7;
     }
 
     function getMomentumDecay() {
-      return isMobileLayout() ? 0.93 : 0.91;
+      return isMobileLayout() ? 0.91 : 0.91;
     }
 
     function syncItemScrollPosition(nextScrollTop) {
@@ -1794,121 +1803,127 @@
       return t * t;
     }
 
+    let bgWasScrolling = false;
+
     function render() {
       const mobile = isMobileLayout();
       const count = portfolioItems.length;
       const loopSpan = count * slitPitch;
+      const decay = mobile ? 0.91 : 0.91;
 
       /* 1) 스크롤: 드래그 중 1:1, 아니면 관성만 */
       if (!bgDragging) {
         bgScroll += bgVel;
-        bgVel *= getMomentumDecay();
-        if (Math.abs(bgVel) < 0.04) bgVel = 0;
+        bgVel *= decay;
+        if (Math.abs(bgVel) < 0.05) bgVel = 0;
       }
 
-      /* 확대용 속도: 프레임 스크롤 변화량을 스무딩 (포인터 vel 노이즈 제거) */
       const frameDelta = Math.abs(bgScroll - bgPrevScroll);
       bgPrevScroll = bgScroll;
-      bgSpeedSmooth += (frameDelta - bgSpeedSmooth) * 0.18;
+      bgSpeedSmooth += (frameDelta - bgSpeedSmooth) * (mobile ? 0.28 : 0.18);
       if (bgSpeedSmooth < 0.02) bgSpeedSmooth = 0;
 
       const rawAmt = getScrollExpandAmount(bgSpeedSmooth);
-      bgSpeedAmtSmooth += (rawAmt - bgSpeedAmtSmooth) * (rawAmt > bgSpeedAmtSmooth ? 0.2 : 0.12);
+      bgSpeedAmtSmooth += (rawAmt - bgSpeedAmtSmooth) * (rawAmt > bgSpeedAmtSmooth ? (mobile ? 0.28 : 0.2) : (mobile ? 0.16 : 0.12));
       if (bgSpeedAmtSmooth < 0.008) bgSpeedAmtSmooth = 0;
 
       const wrapped = loopSpan ? loopSpan + positiveModulo(bgScroll, loopSpan) : 0;
       galleryList.style.transform = `translate3d(0, ${-wrapped}px, 0)`;
       syncBgCompatAliases();
 
-      /* 2) 파도: 화면 세로 중앙 + 스무딩된 속도 비례 */
       const focusY = getBgFocusY();
       const speedAmt = bgSpeedAmtSmooth;
-      const sigma = Math.max(slitPitch * 0.55, 40);
+      const sigma = Math.max(slitPitch * (mobile ? 0.48 : 0.55), 36);
       const pressing = bgPointerDown && !bgMoved && bgPressIndex >= 0;
       const isScrolling = bgDragging || bgSpeedAmtSmooth > 0.02 || Math.abs(bgVel) > 0.15 || bgSpeedSmooth > 0.25;
-      galleryList.classList.toggle("is-scrolling", isScrolling);
-      const targets = new Array(count).fill(0);
+      if (isScrolling !== bgWasScrolling) {
+        galleryList.classList.toggle("is-scrolling", isScrolling);
+        bgWasScrolling = isScrolling;
+      }
 
-      /* 그랩만 했을 때: 살짝만 (풀 확대 금지) */
-      if (pressing && !isScrolling) targets[bgPressIndex] = 0.12;
+      /* 2) 파도: dataIndex만 계산 (카피 루프 최소화) */
+      const targets = new Array(count).fill(0);
+      if (pressing && !isScrolling && bgPressIndex >= 0) targets[bgPressIndex] = 0.12;
 
       if (speedAmt > 0.001 && count > 0) {
-        for (let copy = 0; copy < BG_LOOP_COPIES; copy += 1) {
-          for (let i = 0; i < count; i += 1) {
-            const renderIndex = copy * count + i;
-            const centerY = BG_PAD_TOP + renderIndex * slitPitch + slitHeight * 0.5 - wrapped;
+        const invTwoSigma = 1 / (2 * sigma * sigma);
+        const viewPad = mobile ? 160 : 280;
+        for (let i = 0; i < count; i += 1) {
+          let best = 0;
+          for (let copy = 0; copy < BG_LOOP_COPIES; copy += 1) {
+            const centerY = BG_PAD_TOP + (copy * count + i) * slitPitch + slitHeight * 0.5 - wrapped;
+            if (centerY < -viewPad || centerY > viewportHeight + viewPad) continue;
             const dist = centerY - focusY;
-            const wave = Math.exp(-(dist * dist) / (2 * sigma * sigma));
-            if (wave > 0.03) {
-              targets[i] = Math.max(targets[i], wave * speedAmt);
-            }
+            const wave = Math.exp(-(dist * dist) * invTwoSigma);
+            if (wave > best) best = wave;
           }
+          if (best > 0.03) targets[i] = best * speedAmt;
         }
       }
 
+      let wMax = 0;
       for (let i = 0; i < count; i += 1) {
         const cur = bgWave[i] || 0;
         const next = targets[i];
-        /* 올라갈 때/내려갈 때 모두 부드럽게 — 끊김 제거 */
-        const k = next > cur ? 0.22 : 0.14;
-        bgWave[i] = cur + (next - cur) * k;
-        if (bgWave[i] < 0.004) bgWave[i] = 0;
+        const k = next > cur ? (mobile ? 0.3 : 0.22) : (mobile ? 0.18 : 0.14);
+        const v = cur + (next - cur) * k;
+        bgWave[i] = v < 0.004 ? 0 : v;
+        if (bgWave[i] > wMax) wMax = bgWave[i];
       }
 
-      /* 3) 슬릿 그리기 — 컬러는 정적 호버/탭만
-         opacity: 이번 프레임 최확대(wMax)=1, 확대0=minOp, 중간은 비율 보간
-         스크롤 끝나면 dimAmt→0 이라 전부 1로 복귀 */
+      /* 3) 보이는 슬릿만 스타일 갱신 — 모바일 렉 핵심 완화 */
       const dimAmt = speedAmt;
-      let wMax = 0;
-      for (let i = 0; i < count; i += 1) wMax = Math.max(wMax, bgWave[i] || 0);
-      const MIN_OP = 0.14; /* 확대 안 된 애 — 낮출수록 최확대가 더 선명 */
+      const MIN_OP = 0.14;
+      const cullPad = mobile ? 100 : 180;
+      const len = slitElements.length;
 
-      slitElements.forEach(({ slit, media, renderIndex, dataIndex }) => {
+      for (let s = 0; s < len; s += 1) {
+        const { slit, media, renderIndex, dataIndex } = slitElements[s];
         const centerY = BG_PAD_TOP + renderIndex * slitPitch + slitHeight * 0.5 - wrapped;
-        const visibleT = ((centerY / Math.max(viewportHeight, 1)) * 2.0) - 1.0;
-        const w = clamp(bgWave[dataIndex] || 0, 0, 1);
+
+        if (centerY < -cullPad || centerY > viewportHeight + cullPad) {
+          if (slit.dataset.vis !== "0") {
+            slit.style.transform = "";
+            slit.style.opacity = "";
+            slit.style.zIndex = "";
+            media.style.transform = "";
+            slit.classList.remove("is-active");
+            slit.dataset.vis = "0";
+          }
+          continue;
+        }
+
+        const w = bgWave[dataIndex] || 0;
         const expanding = w > 0.02;
         const colored = !isScrolling && (
           (pressing && dataIndex === bgPressIndex) ||
           (!mobile && dataIndex === activeIndex && activeIndex >= 0)
         );
-
-        /* 현재 최확대 대비 상대값 (이론상 max 확대 기준 X) */
         const rel = wMax > 0.02 ? clamp(w / wMax, 0, 1) : 1;
-        const focusOpacity = MIN_OP + (1 - MIN_OP) * rel; /* 최확대=1, 미확대=0.3, 중간=사이 */
+        const focusOpacity = MIN_OP + (1 - MIN_OP) * rel;
         const opacity = 1 - dimAmt * (1 - focusOpacity);
-        slit.style.opacity = opacity >= 0.995 ? "" : opacity.toFixed(3);
 
+        slit.dataset.vis = "1";
+        slit.style.opacity = opacity >= 0.995 ? "" : (opacity * 1000 | 0) / 1000;
         slit.classList.toggle("is-active", colored);
 
-        if (mobile && !expanding && (visibleT < -1.4 || visibleT > 1.4)) {
-          slit.style.transform = "";
-          media.style.transform = "";
-          slit.style.zIndex = "";
-          return;
-        }
-
-        const dist = centerY - focusY;
-        const phase = clamp(dist / (sigma * 1.6), -1, 1);
-        const crestLift = -w * 12;
-        const sideDip = Math.sin(phase * Math.PI) * w * 3;
-        const scaleY = 1 + w * 0.62;
-        const scaleX = 1 + w * 0.018;
-        const mediaScale = 1.02 + w * 0.08;
-        const hoverBoost = colored ? 1.08 : 1;
-
-        slit.style.zIndex = expanding ? String(90 + Math.round(w * 30)) : (colored ? "80" : "");
         if (expanding) {
-          slit.style.transform = `translate3d(0, ${crestLift + sideDip}px, 0) scale(${scaleX}, ${scaleY})`;
-          media.style.transform = `scale(${mediaScale})`;
+          const crestLift = -w * (mobile ? 10 : 12);
+          const scaleY = 1 + w * (mobile ? 0.55 : 0.62);
+          const scaleX = 1 + w * 0.016;
+          slit.style.zIndex = String(90 + (w * 30 | 0));
+          slit.style.transform = "translate3d(0," + crestLift.toFixed(2) + "px,0) scale(" + scaleX.toFixed(3) + "," + scaleY.toFixed(3) + ")";
+          media.style.transform = mobile ? "" : "scale(" + (1.02 + w * 0.08).toFixed(3) + ")";
         } else if (colored) {
-          slit.style.transform = `scale(1.02, ${hoverBoost})`;
+          slit.style.zIndex = "80";
+          slit.style.transform = "scale(1.02,1.08)";
           media.style.transform = "scale(1.04)";
         } else {
+          slit.style.zIndex = "";
           slit.style.transform = "";
           media.style.transform = "";
         }
-      });
+      }
 
       rafId = requestAnimationFrame(render);
     }
@@ -2181,12 +2196,12 @@
     function renderItemView(){
       const mobile = isMobileLayout();
 
-      /* 스크롤: 드래그 중 1:1, 아니면 관성만 — 보간/3D 이펙트 없음 */
+      /* 스크롤: 드래그 중 1:1, 아니면 관성만 */
       if (!iDragging) {
         iScrollTop += iScrollVel;
         iTargetScroll = iScrollTop;
-        iScrollVel *= getMomentumDecay();
-        if (Math.abs(iScrollVel) < 0.04) iScrollVel = 0;
+        iScrollVel *= mobile ? 0.91 : getMomentumDecay();
+        if (Math.abs(iScrollVel) < 0.05) iScrollVel = 0;
       } else {
         iTargetScroll = iScrollTop;
       }
@@ -2195,29 +2210,57 @@
       const wrapTranslateY = -(itemLoopSpan + wrappedScroll);
       const wrap = document.getElementById("itemWrap");
       if (wrap) wrap.style.transform = "translate3d(0," + wrapTranslateY + "px,0)";
-      itemCols.forEach((col) => { if (col) col.style.transform = ""; });
 
       const pressedEl = (iPtrDown && !iPtrMoved) ? pressedItemEntry?.el : null;
       const hoverEl = (!mobile && !iDragging) ? hoveredItemEntry?.el : null;
       const activeEl = pressedEl || hoverEl;
+      const len = itemRegistry.length;
 
-      itemRegistry.forEach((entry, idx) => {
-        const card = entry.el;
-        const on = activeEl && entry.el === activeEl;
+      /* 모바일 스크롤 중엔 호버 스케일 루프 스킵 → 끊김 완화 */
+      if (mobile && iDragging) {
+        for (let i = 0; i < len; i += 1) {
+          const card = itemRegistry[i].el;
+          if (card.dataset.hot === "1") {
+            card.style.transform = "";
+            card.style.zIndex = "";
+            card.classList.remove("is-active");
+            card.dataset.hot = "0";
+            itemHoverScales[i] = 0;
+          }
+        }
+        iRafId = requestAnimationFrame(renderItemView);
+        return;
+      }
+
+      for (let i = 0; i < len; i += 1) {
+        const card = itemRegistry[i].el;
+        const on = activeEl && card === activeEl;
         const target = on ? 1 : 0;
-        itemHoverScales[idx] = (itemHoverScales[idx] || 0) + (target - (itemHoverScales[idx] || 0)) * 0.28;
-        const hs = itemHoverScales[idx];
-        const expanding = hs > 0.02;
-
-        card.classList.toggle("is-active", on || hs > 0.25);
-        if (expanding) {
-          card.style.zIndex = String(90 + Math.round(hs * 20));
-          card.style.transform = "scale(" + (1 + hs * 0.14).toFixed(4) + ")";
+        const cur = itemHoverScales[i] || 0;
+        if (!on && cur < 0.01) {
+          if (card.dataset.hot === "1") {
+            card.style.transform = "";
+            card.style.zIndex = "";
+            card.classList.remove("is-active");
+            card.dataset.hot = "0";
+          }
+          itemHoverScales[i] = 0;
+          continue;
+        }
+        const hs = cur + (target - cur) * 0.3;
+        itemHoverScales[i] = hs < 0.01 ? 0 : hs;
+        if (hs > 0.02) {
+          card.dataset.hot = "1";
+          card.classList.toggle("is-active", on || hs > 0.25);
+          card.style.zIndex = String(90 + (hs * 20 | 0));
+          card.style.transform = "scale(" + (1 + hs * 0.14).toFixed(3) + ")";
         } else {
+          card.dataset.hot = "0";
+          card.classList.remove("is-active");
           card.style.transform = "";
           card.style.zIndex = "";
         }
-      });
+      }
 
       iRafId = requestAnimationFrame(renderItemView);
     }
@@ -2288,7 +2331,8 @@
           iTargetScroll = iScrollTop;
           const now = performance.now();
           const dt = Math.max(8, now - iLastMoveTs);
-          iScrollVel = ((iLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
+          const instant = ((iLastY - e.clientY) / dt) * 16.67 * getDragVelocityFactor();
+          iScrollVel = instant * 0.6 + iScrollVel * 0.4;
           iLastY = e.clientY;
           iLastMoveTs = now;
         }
