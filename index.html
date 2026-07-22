@@ -2,14 +2,16 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="portfolio-asset-root" content="">
   <link rel="icon" type="image/png" href="./favicon.png">
   <link rel="apple-touch-icon" href="./favicon.png">
   <title>포트폴리오</title>
   <style>
     :root {
-      --bg: #ffffff;
+      --bg: #111111;
       --panel: rgba(255, 255, 255, 0.92);
       --text: #171717;
       --muted: #767676;
@@ -19,6 +21,7 @@
       --radius-lg: 28px;
       --radius-md: 22px;
       --radius-sm: 16px;
+      --app-height: 100dvh;
     }
 
     * {
@@ -27,9 +30,12 @@
 
     html {
       height: 100%;
+      height: var(--app-height);
+      background: #ffffff;
       scroll-behavior: smooth;
       user-select: none;
       -webkit-user-select: none;
+      overscroll-behavior: none;
     }
 
     body {
@@ -37,7 +43,9 @@
       font-family: "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
       color: var(--text);
       background: #ffffff;
-      height: 100vh;
+      height: 100%;
+      height: var(--app-height);
+      min-height: var(--app-height);
       overflow: hidden;
       overscroll-behavior: none;
       user-select: none;
@@ -52,11 +60,12 @@
     .shell {
       width: min(1480px, calc(100% - 48px));
       margin: 24px auto;
-      height: calc(100vh - 48px);
+      height: calc(var(--app-height) - 48px);
       display: grid;
       grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
       gap: 24px;
       align-items: stretch;
+      background: #111111;
     }
 
     .intro {
@@ -193,7 +202,7 @@
 
     .gallery-wrap {
       position: relative;
-      height: calc(100vh - 48px);
+      height: calc(var(--app-height) - 48px);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -293,10 +302,14 @@
       display: block;
       object-fit: cover;
       filter: grayscale(1) saturate(0.72) brightness(0.92);
-      transition: filter 180ms ease, opacity 180ms ease;
+      opacity: 0;
+      transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
       pointer-events: none;
       -webkit-user-drag: none;
+    }
+    .item-card img.is-loaded {
+      opacity: 0.95;
     }
     .item-card.is-active img,
     .item-card:hover img {
@@ -513,10 +526,13 @@
       height: 124%;
       object-fit: cover;
       display: block;
-      transition: filter 180ms ease, opacity 180ms ease;
+      transition: filter 180ms ease, opacity 220ms ease;
       user-select: none;
       pointer-events: none;
       filter: grayscale(1) saturate(0.72) brightness(0.92) contrast(1);
+      opacity: 0;
+    }
+    .slit img.is-loaded {
       opacity: 0.95;
     }
 
@@ -776,6 +792,12 @@
     }
 
     @media (max-width: 1080px) {
+      html,
+      body {
+        background: #111111;
+        color-scheme: dark;
+      }
+
       .view-toggle {
         padding: 2px;
       }
@@ -789,14 +811,14 @@
       .shell {
         grid-template-columns: 1fr;
         width: 100%;
-        height: 100vh;
-        min-height: 100vh;
+        height: var(--app-height);
+        min-height: var(--app-height);
         margin: 0;
         gap: 0;
         align-items: stretch;
         overflow-x: hidden;
         overflow-y: auto;
-        overscroll-behavior-y: contain;
+        overscroll-behavior-y: none;
         -webkit-overflow-scrolling: touch;
         scroll-snap-type: y mandatory;
         background: #111;
@@ -805,14 +827,15 @@
       .intro {
         position: relative;
         top: 0;
-        min-height: 100vh;
-        height: 100vh;
+        min-height: var(--app-height);
+        height: var(--app-height);
         padding: 24px 22px 20px;
         border-radius: 0;
         justify-content: flex-start;
         overflow: hidden;
         scroll-snap-align: start;
         scroll-snap-stop: always;
+        background: #ffffff;
       }
 
       .intro-top {
@@ -863,8 +886,8 @@
       .gallery-wrap {
         position: relative;
         top: 0;
-        min-height: 100vh;
-        height: 100vh;
+        min-height: var(--app-height);
+        height: var(--app-height);
         flex-shrink: 0;
         border-radius: 0;
         scroll-snap-align: start;
@@ -885,7 +908,7 @@
         justify-content: space-between;
         flex-wrap: nowrap;
         gap: 8px;
-        padding: 16px 16px 12px;
+        padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 12px;
       }
 
       .link-group {
@@ -963,7 +986,7 @@
       }
 
       .gallery-head {
-        padding: 14px 12px 10px;
+        padding: calc(14px + env(safe-area-inset-top, 0px)) 12px 10px;
         gap: 6px;
       }
 
@@ -982,8 +1005,8 @@
       }
 
       .gallery-wrap {
-        min-height: 100vh;
-        height: 100vh;
+        min-height: var(--app-height);
+        height: var(--app-height);
       }
 
       .item-masonry-wrap {
@@ -1024,7 +1047,7 @@
           <div class="meta-list">
             <div class="meta-item">
               <span class="meta-label">Name</span>
-              <span class="meta-value">이빨요정/ToothFairy
+              <span class="meta-value">이빨요정/ToothFairy</span>
             </div>
             <div class="meta-item">
               <span class="meta-label">Field</span>
@@ -1242,12 +1265,12 @@
 
     const AUTO_MEDIA_EXTENSIONS = ["png", "gif", "webp", "jpg", "jpeg"];
     const AUTO_MEDIA_INDEX_MAX = 300;
-    const AUTO_MEDIA_MISS_LIMIT = 20;
-    const GITHUB_OWNER = "leejg04133-create";
-    const GITHUB_REPO = "toothfairy-portfolio";
-    const GITHUB_BRANCH = "main";
-    const GITHUB_CONTENTS_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents`;
-    const IS_REMOTE_SITE = /^https?:$/i.test(window.location.protocol);
+    const AUTO_MEDIA_MISS_LIMIT = 8;
+    const MEDIA_MANIFEST_URL = resolveAssetSrc("media-manifest.json");
+    const PRELOAD_CONCURRENCY = 8;
+    const imageDecodeCache = new Map();
+    let itemLayoutRefreshTimer = null;
+    let itemViewReady = false;
 
     function getAutoMediaCandidates(folder, index) {
       const plain = String(index);
@@ -1260,23 +1283,25 @@
 
     function probeImageSource(rawSrc) {
       const resolvedSrc = resolveAssetSrc(rawSrc);
-      if (!resolvedSrc) return Promise.resolve(false);
-      return new Promise((resolve) => {
+      if (!resolvedSrc) return Promise.resolve("");
+      if (imageDecodeCache.has(resolvedSrc)) {
+        return imageDecodeCache.get(resolvedSrc);
+      }
+      const probe = new Promise((resolve) => {
         const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
+        img.decoding = "async";
+        img.onload = () => resolve(resolvedSrc);
+        img.onerror = () => resolve("");
         img.src = resolvedSrc;
       });
+      imageDecodeCache.set(resolvedSrc, probe);
+      return probe;
     }
 
     async function findSequentialImageSource(folder, index) {
       const candidates = getAutoMediaCandidates(folder, index);
-      for (const candidate of candidates) {
-        if (await probeImageSource(candidate)) {
-          return candidate;
-        }
-      }
-      return "";
+      const results = await Promise.all(candidates.map((candidate) => probeImageSource(candidate)));
+      return candidates.find((_, idx) => results[idx]) || "";
     }
 
     function makePortfolioMeta(index) {
@@ -1299,110 +1324,161 @@
       return match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
     }
 
-    async function fetchGithubFolderMedia(folder, makeData) {
-      const response = await fetch(`${GITHUB_CONTENTS_API}/${folder}?ref=${GITHUB_BRANCH}`, {
-        headers: { "Accept": "application/vnd.github+json" }
-      });
-      if (!response.ok) {
-        throw new Error(`GitHub contents fetch failed: ${folder} ${response.status}`);
-      }
+    function sortMediaNames(names) {
+      return [...names].sort((a, b) => getNumericStem(a) - getNumericStem(b));
+    }
 
-      const entries = await response.json();
-      return entries
-        .filter((entry) => entry && entry.type === "file")
-        .filter((entry) => /\.(png|gif|webp|jpg|jpeg)$/i.test(entry.name || ""))
-        .sort((a, b) => getNumericStem(a.name) - getNumericStem(b.name))
-        .map((entry, idx) => makeData(idx + 1, entry.download_url, entry.name));
+    async function loadMediaManifest() {
+      try {
+        const response = await fetch(MEDIA_MANIFEST_URL, { cache: "force-cache" });
+        if (!response.ok) throw new Error(`manifest ${response.status}`);
+        const data = await response.json();
+        const imageNames = sortMediaNames(Array.isArray(data?.image) ? data.image : []);
+        const itemNames = sortMediaNames(Array.isArray(data?.item) ? data.item : []);
+        return {
+          portfolioItems: imageNames.map((name, idx) => {
+            const index = idx + 1;
+            const meta = makePortfolioMeta(idx);
+            return {
+              number: String(index).padStart(2, "0"),
+              title: meta.title,
+              subtitle: meta.subtitle,
+              src: `image/${name}`
+            };
+          }),
+          itemImages: itemNames.map((name, idx) => ({
+            src: `item/${name}`,
+            label: makeItemLabel(idx)
+          }))
+        };
+      } catch (error) {
+        console.warn("[portfolio] media manifest unavailable", error);
+        return null;
+      }
     }
 
     async function discoverSequentialMedia(folder, makeData) {
       const discovered = [];
       let missCount = 0;
-      for (let index = 1; index <= AUTO_MEDIA_INDEX_MAX && missCount < AUTO_MEDIA_MISS_LIMIT; index += 1) {
-        const foundSrc = await findSequentialImageSource(folder, index);
-        if (foundSrc) {
-          discovered.push(makeData(index, foundSrc));
-          missCount = 0;
-        } else {
-          missCount += 1;
+      const batchSize = 6;
+      for (let start = 1; start <= AUTO_MEDIA_INDEX_MAX && missCount < AUTO_MEDIA_MISS_LIMIT; start += batchSize) {
+        const indexes = Array.from({ length: batchSize }, (_, i) => start + i)
+          .filter((index) => index <= AUTO_MEDIA_INDEX_MAX);
+        const foundList = await Promise.all(indexes.map((index) => findSequentialImageSource(folder, index)));
+        for (let i = 0; i < indexes.length; i += 1) {
+          const foundSrc = foundList[i];
+          if (foundSrc) {
+            discovered.push(makeData(indexes[i], foundSrc));
+            missCount = 0;
+          } else {
+            missCount += 1;
+            if (missCount >= AUTO_MEDIA_MISS_LIMIT) break;
+          }
         }
       }
       return discovered;
     }
 
+    function preloadImageSources(sources, concurrency = PRELOAD_CONCURRENCY) {
+      const unique = [...new Set(sources.map((src) => resolveAssetSrc(src)).filter(Boolean))];
+      let cursor = 0;
+      const workers = Array.from({ length: Math.min(concurrency, unique.length || 1) }, async () => {
+        while (cursor < unique.length) {
+          const src = unique[cursor];
+          cursor += 1;
+          await probeImageSource(src);
+        }
+      });
+      return Promise.all(workers);
+    }
+
+    function markImageLoaded(img) {
+      if (!img) return;
+      if (img.complete && img.naturalWidth > 0) {
+        img.classList.add("is-loaded");
+        return;
+      }
+      img.addEventListener("load", () => img.classList.add("is-loaded"), { once: true });
+    }
+
+    function scheduleItemLayoutRefreshBatched() {
+      if (curView !== "item") return;
+      if (itemLayoutRefreshTimer) clearTimeout(itemLayoutRefreshTimer);
+      itemLayoutRefreshTimer = setTimeout(() => {
+        itemLayoutRefreshTimer = null;
+        scheduleItemLayoutRefresh();
+      }, 120);
+    }
+
+    function applyDiscoveredMedia(discoveredPortfolioItems, discoveredItemImages) {
+      if (discoveredPortfolioItems.length > 0) {
+        portfolioItems = discoveredPortfolioItems;
+        buildGallery();
+        resizeGallery();
+        startRender();
+        preloadImageSources(portfolioItems.map((item) => item.src));
+      }
+
+      if (discoveredItemImages.length > 0) {
+        itemImages = discoveredItemImages;
+        itemShuffleOrder = null;
+        itemViewReady = false;
+        preloadImageSources(itemImages.map((item) => item.src)).finally(() => {
+          prepareItemViewInBackground();
+        });
+      }
+    }
+
+    function prepareItemViewInBackground() {
+      const viewEl = document.getElementById("itemView");
+      if (!viewEl || !itemImages.some((item) => item.src) || itemViewReady) return;
+      const prevDisplay = viewEl.style.display;
+      if (curView !== "item") {
+        viewEl.style.visibility = "hidden";
+        viewEl.style.pointerEvents = "none";
+        viewEl.style.display = "block";
+      }
+      buildItemView();
+      resizeItemView();
+      requestAnimationFrame(() => {
+        measureItemCards();
+        itemViewReady = true;
+        if (curView !== "item") {
+          stopItemRaf();
+          viewEl.style.display = prevDisplay || "none";
+          viewEl.style.visibility = "";
+          viewEl.style.pointerEvents = "";
+        } else if (!iRafId) {
+          startItemRaf();
+        }
+      });
+    }
+
     async function syncMediaFromFolders() {
       try {
-        if (IS_REMOTE_SITE) {
-          const [discoveredPortfolioItems, discoveredItemImages] = await Promise.all([
-            fetchGithubFolderMedia("image", (index, src) => {
-              const meta = makePortfolioMeta(index - 1);
-              return {
-                number: String(index).padStart(2, "0"),
-                title: meta.title,
-                subtitle: meta.subtitle,
-                src
-              };
-            }),
-            fetchGithubFolderMedia("item", (index, src) => ({
-              src,
-              label: makeItemLabel(index - 1)
-            }))
-          ]);
-
-          if (discoveredPortfolioItems.length > 0) {
-            portfolioItems = discoveredPortfolioItems;
-            buildGallery();
-            resizeGallery();
-            startRender();
-          }
-
-          if (discoveredItemImages.length > 0) {
-            itemImages = discoveredItemImages;
-            itemShuffleOrder = null;
-            if (curView === "item") {
-              buildItemView();
-              requestAnimationFrame(() => {
-                resizeItemView();
-                measureItemCards();
-              });
-            }
-          }
+        const fromManifest = await loadMediaManifest();
+        if (fromManifest) {
+          applyDiscoveredMedia(fromManifest.portfolioItems, fromManifest.itemImages);
           return;
         }
 
-        const discoveredPortfolioItems = await discoverSequentialMedia("image", (index, src) => {
-          const meta = makePortfolioMeta(index - 1);
-          return {
-            number: String(index).padStart(2, "0"),
-            title: meta.title,
-            subtitle: meta.subtitle,
-            src
-          };
-        });
+        const [discoveredPortfolioItems, discoveredItemImages] = await Promise.all([
+          discoverSequentialMedia("image", (index, src) => {
+            const meta = makePortfolioMeta(index - 1);
+            return {
+              number: String(index).padStart(2, "0"),
+              title: meta.title,
+              subtitle: meta.subtitle,
+              src
+            };
+          }),
+          discoverSequentialMedia("item", (index, src) => ({
+            src,
+            label: makeItemLabel(index - 1)
+          }))
+        ]);
 
-        if (discoveredPortfolioItems.length > 0) {
-          portfolioItems = discoveredPortfolioItems;
-          buildGallery();
-          resizeGallery();
-          startRender();
-        }
-
-        const discoveredItemImages = await discoverSequentialMedia("item", (index, src) => ({
-          src,
-          label: makeItemLabel(index - 1)
-        }));
-
-        if (discoveredItemImages.length > 0) {
-          itemImages = discoveredItemImages;
-          itemShuffleOrder = null;
-          if (curView === "item") {
-            buildItemView();
-            requestAnimationFrame(() => {
-              resizeItemView();
-              measureItemCards();
-            });
-          }
-        }
+        applyDiscoveredMedia(discoveredPortfolioItems, discoveredItemImages);
       } catch (error) {
         console.warn("[portfolio] media sync failed", error);
       }
@@ -1474,11 +1550,13 @@
             img.alt = item.title;
             img.loading = "eager";
             img.decoding = "async";
+            img.fetchPriority = copy === 0 ? "high" : "low";
             img.draggable = false;
             img.onerror = () => {
               media.innerHTML = "";
               media.appendChild(createSlitPlaceholder(item, "image load failed"));
             };
+            markImageLoaded(img);
             media.appendChild(img);
           } else {
             media.appendChild(createSlitPlaceholder(item));
@@ -1787,10 +1865,16 @@
             if(src){
               const img = document.createElement("img");
               img.src=src; img.alt=item.label||"";
-              img.loading="lazy"; img.draggable=false;
+              img.loading = copy === 0 ? "eager" : "lazy";
+              img.fetchPriority = copy === 0 && localIdx < 8 ? "high" : "auto";
+              img.draggable=false;
               img.decoding="async";
-              img.onload=()=>{ scheduleItemLayoutRefresh(); };
+              img.onload=()=>{
+                img.classList.add("is-loaded");
+                scheduleItemLayoutRefreshBatched();
+              };
               img.onerror=()=>{ card.innerHTML=""; addItemPh(card,item.label,ratio); };
+              if (img.complete && img.naturalWidth > 0) img.classList.add("is-loaded");
               card.appendChild(img);
             } else {
               addItemPh(card, item.label, ratio);
@@ -2065,6 +2149,7 @@
       const nextColCount = getItemColumnCount();
       if (rebuildItemView || nextColCount !== activeItemColCount || itemRegistry.length === 0) {
         buildItemView();
+        itemViewReady = true;
       } else {
         applyItemColumnLayout();
       }
@@ -2143,8 +2228,12 @@
         document.getElementById("btnBg").classList.remove("is-active");
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
+        itemView.style.visibility = "";
+        itemView.style.pointerEvents = "";
         itemView.style.display = "block";
-        scheduleCurrentViewLayout({ rebuildItemView: true, restartItemRaf: true });
+        const needsRebuild = !itemViewReady || itemRegistry.length === 0;
+        scheduleCurrentViewLayout({ rebuildItemView: needsRebuild, restartItemRaf: true });
+        if (!itemViewReady) prepareItemViewInBackground();
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
@@ -2159,6 +2248,7 @@
     document.getElementById("btnItem").addEventListener("click",  ()=>switchView("item"));
 
     function handleViewportChange() {
+      syncAppHeight();
       scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
       updateMobileSnapState();
       scheduleMobileSnapLayoutRefresh();
@@ -2168,8 +2258,17 @@
     window.addEventListener("orientationchange", handleViewportChange);
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", handleViewportChange);
+      window.visualViewport.addEventListener("scroll", syncAppHeight);
     }
 
+    function syncAppHeight() {
+      const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
+      if (viewportHeight > 0) {
+        document.documentElement.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
+      }
+    }
+
+    syncAppHeight();
     buildGallery();
     applyItemColumnLayout();
     scheduleCurrentViewLayout();
