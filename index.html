@@ -498,7 +498,6 @@
       box-shadow: 0 8px 18px rgba(0,0,0,0.12);
       flex-shrink: 0;
       transform-origin: center center;
-      will-change: transform;
       transition: box-shadow 180ms ease;
     }
 
@@ -512,7 +511,6 @@
     .slit-media {
       position: absolute;
       inset: -18% -2%;
-      will-change: transform;
       transform-origin: center center;
     }
 
@@ -1265,15 +1263,7 @@
       "029": { title:"Title 029", subtitle:"Subtitle 029" },
       "030": { title:"Title 030", subtitle:"Subtitle 030" }
     };
-    const portfolioMetaSeeds = Object.keys(portfolioMetaMap)
-      .sort()
-      .map((key) => portfolioMetaMap[key]);
-    let portfolioItems = portfolioMetaSeeds.map((meta, index) => ({
-      number: String(index + 1).padStart(2, "0"),
-      title: meta.title,
-      subtitle: meta.subtitle,
-      src: `image/${index + 1}.png`
-    }));
+    let portfolioItems = [];
 
     const galleryStage    = document.getElementById("galleryStage");
     const galleryScroll   = document.getElementById("bgView");
@@ -1362,45 +1352,81 @@
       return resolveAssetSrc(item && item.src ? item.src : "");
     }
 
-    const AUTO_MEDIA_EXTENSIONS = ["png", "gif", "webp", "jpg", "jpeg"];
-    const AUTO_MEDIA_INDEX_MAX = 300;
-    const AUTO_MEDIA_MISS_LIMIT = 8;
     const MEDIA_MANIFEST_URL = resolveAssetSrc("media-manifest.json");
-    const PRELOAD_CONCURRENCY = 8;
-    const imageDecodeCache = new Map();
-    let itemLayoutRefreshTimer = null;
     let itemViewReady = false;
+    const mediaRecords = new Map();
+    const mediaObservers = new Map();
+    const MEDIA_CONCURRENCY = 4;
+    let activeMediaLoads = 0;
 
-    function getAutoMediaCandidates(folder, index) {
-      const plain = String(index);
-      const pad3 = plain.padStart(3, "0");
-      return AUTO_MEDIA_EXTENSIONS.flatMap((ext) => [
-        `${folder}/${plain}.${ext}`,
-        `${folder}/${pad3}.${ext}`
-      ]);
-    }
-
-    function probeImageSource(rawSrc) {
-      const resolvedSrc = resolveAssetSrc(rawSrc);
-      if (!resolvedSrc) return Promise.resolve("");
-      if (imageDecodeCache.has(resolvedSrc)) {
-        return imageDecodeCache.get(resolvedSrc);
+    // Only nearby cards receive a src. Transform-based infinite scrolling does not
+    // use native scroll offsets, so observe the actual displayed copies instead.
+    function observeMedia(img, item, group, onError) {
+      const src = resolveAssetSrc(item.previewSrc || item.src);
+      const fallback = resolveAssetSrc(item.src);
+      const record = { img, src, fallback, group, nearby: false, visible: false, started: false, onError };
+      mediaRecords.set(img, record);
+      img.alt = item.title || item.label || "";
+      img.decoding = "async";
+      img.draggable = false;
+      let observer = mediaObservers.get(group);
+      if (!observer) {
+        const root = group === "bg" ? galleryStage : document.getElementById("itemView");
+        observer = new IntersectionObserver((entries) => {
+          const bounds = root.getBoundingClientRect();
+          for (const entry of entries) {
+            const media = mediaRecords.get(entry.target);
+            if (!media) continue;
+            media.nearby = entry.isIntersecting;
+            media.visible = entry.isIntersecting && entry.boundingClientRect.bottom > bounds.top && entry.boundingClientRect.top < bounds.bottom;
+          }
+          pumpMediaQueue();
+        }, { root, rootMargin: "500px 0px", threshold: 0 });
+        mediaObservers.set(group, observer);
       }
-      const probe = new Promise((resolve) => {
-        const img = new Image();
-        img.decoding = "async";
-        img.onload = () => resolve(resolvedSrc);
-        img.onerror = () => resolve("");
-        img.src = resolvedSrc;
-      });
-      imageDecodeCache.set(resolvedSrc, probe);
-      return probe;
+      observer.observe(img);
     }
 
-    async function findSequentialImageSource(folder, index) {
-      const candidates = getAutoMediaCandidates(folder, index);
-      const results = await Promise.all(candidates.map((candidate) => probeImageSource(candidate)));
-      return candidates.find((_, idx) => results[idx]) || "";
+    function resetMediaGroup(group) {
+      mediaObservers.get(group)?.disconnect();
+      for (const [img, record] of mediaRecords) {
+        if (record.group === group) mediaRecords.delete(img);
+      }
+    }
+
+    function pumpMediaQueue() {
+      if (!canRenderView(curView)) return;
+      const pending = [...mediaRecords.values()]
+        .filter((record) => !record.started && record.nearby && record.group === curView)
+        .sort((a, b) => Number(b.visible) - Number(a.visible));
+      for (const record of pending) {
+        if (activeMediaLoads >= MEDIA_CONCURRENCY) break;
+        record.started = true;
+        activeMediaLoads += 1;
+        const { img } = record;
+        img.loading = "eager";
+        img.fetchPriority = record.visible ? "high" : "low";
+        const finish = () => {
+          img.onload = null;
+          img.onerror = null;
+          activeMediaLoads -= 1;
+          pumpMediaQueue();
+        };
+        img.onload = () => {
+          img.classList.add("is-loaded");
+          finish();
+        };
+        img.onerror = () => {
+          if (record.src !== record.fallback) {
+            record.src = record.fallback;
+            img.src = record.fallback;
+            return;
+          }
+          record.onError();
+          finish();
+        };
+        img.src = record.src;
+      }
     }
 
     function makePortfolioMeta(index) {
@@ -1428,85 +1454,45 @@
     }
 
     async function loadMediaManifest() {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      let data;
       try {
-        const response = await fetch(MEDIA_MANIFEST_URL, { cache: "force-cache" });
+        const response = await fetch(MEDIA_MANIFEST_URL, { cache: "no-cache", signal: controller.signal });
         if (!response.ok) throw new Error(`manifest ${response.status}`);
-        const data = await response.json();
-        const imageNames = sortMediaNames(Array.isArray(data?.image) ? data.image : []);
-        const itemNames = sortMediaNames(Array.isArray(data?.item) ? data.item : []);
-        return {
-          portfolioItems: imageNames.map((name, idx) => {
-            const index = idx + 1;
-            const meta = makePortfolioMeta(idx);
-            return {
-              number: String(index).padStart(2, "0"),
-              title: meta.title,
-              subtitle: meta.subtitle,
-              src: `image/${name}`
-            };
-          }),
-          itemImages: itemNames.map((name, idx) => ({
-            src: `item/${name}`,
-            label: makeItemLabel(idx)
-          }))
-        };
+        data = await response.json();
+        if (!Array.isArray(data?.image) || !Array.isArray(data?.item)) throw new Error("invalid media manifest");
       } catch (error) {
-        console.warn("[portfolio] media manifest unavailable", error);
-        return null;
+        console.warn("[portfolio] using bundled media list", error);
+        // A failed manifest must not trigger hundreds of speculative image requests.
+        const gifs = new Set([...Array.from({ length: 17 }, (_, i) => i + 1), 37, 43, 44, 45, 46]);
+        data = {
+          image: Array.from({ length: 22 }, (_, i) => `${i + 1}.png`),
+          item: Array.from({ length: 47 }, (_, i) => `${i + 1}.${gifs.has(i + 1) ? "gif" : "png"}`)
+        };
+      } finally {
+        clearTimeout(timeout);
       }
-    }
-
-    async function discoverSequentialMedia(folder, makeData) {
-      const discovered = [];
-      let missCount = 0;
-      const batchSize = 6;
-      for (let start = 1; start <= AUTO_MEDIA_INDEX_MAX && missCount < AUTO_MEDIA_MISS_LIMIT; start += batchSize) {
-        const indexes = Array.from({ length: batchSize }, (_, i) => start + i)
-          .filter((index) => index <= AUTO_MEDIA_INDEX_MAX);
-        const foundList = await Promise.all(indexes.map((index) => findSequentialImageSource(folder, index)));
-        for (let i = 0; i < indexes.length; i += 1) {
-          const foundSrc = foundList[i];
-          if (foundSrc) {
-            discovered.push(makeData(indexes[i], foundSrc));
-            missCount = 0;
-          } else {
-            missCount += 1;
-            if (missCount >= AUTO_MEDIA_MISS_LIMIT) break;
-          }
-        }
-      }
-      return discovered;
-    }
-
-    function preloadImageSources(sources, concurrency = PRELOAD_CONCURRENCY) {
-      const unique = [...new Set(sources.map((src) => resolveAssetSrc(src)).filter(Boolean))];
-      let cursor = 0;
-      const workers = Array.from({ length: Math.min(concurrency, unique.length || 1) }, async () => {
-        while (cursor < unique.length) {
-          const src = unique[cursor];
-          cursor += 1;
-          await probeImageSource(src);
-        }
-      });
-      return Promise.all(workers);
-    }
-
-    function markImageLoaded(img) {
-      if (!img) return;
-      if (img.complete && img.naturalWidth > 0) {
-        img.classList.add("is-loaded");
-        return;
-      }
-      img.addEventListener("load", () => img.classList.add("is-loaded"), { once: true });
-    }
-
-    function scheduleItemLayoutRefreshBatched() {
-      if (curView !== "item") return;
-      if (itemLayoutRefreshTimer) clearTimeout(itemLayoutRefreshTimer);
-      itemLayoutRefreshTimer = setTimeout(() => {
-        itemLayoutRefreshTimer = null;
-        scheduleItemLayoutRefresh();
-      }, 120);
+      const imageNames = sortMediaNames(data.image);
+      const itemNames = sortMediaNames(data.item);
+      return {
+        portfolioItems: imageNames.map((name, idx) => {
+          const index = idx + 1;
+          const meta = makePortfolioMeta(idx);
+          return {
+            number: String(index).padStart(2, "0"),
+            title: meta.title,
+            subtitle: meta.subtitle,
+            src: `image/${name}`,
+            previewSrc: data.previews?.[`image/${name}`] || ""
+          };
+        }),
+        itemImages: itemNames.map((name, idx) => ({
+          src: `item/${name}`,
+          previewSrc: data.previews?.[`item/${name}`] || "",
+          label: makeItemLabel(idx)
+        }))
+      };
     }
 
     function applyDiscoveredMedia(discoveredPortfolioItems, discoveredItemImages) {
@@ -1515,69 +1501,20 @@
         buildGallery();
         resizeGallery();
         startRender();
-        preloadImageSources(portfolioItems.map((item) => item.src));
       }
 
       if (discoveredItemImages.length > 0) {
         itemImages = discoveredItemImages;
         itemShuffleOrder = null;
         itemViewReady = false;
-        preloadImageSources(itemImages.map((item) => item.src)).finally(() => {
-          prepareItemViewInBackground();
-        });
+        if (curView === "item") scheduleCurrentViewLayout({ rebuildItemView: true });
       }
-    }
-
-    function prepareItemViewInBackground() {
-      const viewEl = document.getElementById("itemView");
-      if (!viewEl || !itemImages.some((item) => item.src) || itemViewReady) return;
-      const prevDisplay = viewEl.style.display;
-      if (curView !== "item") {
-        viewEl.style.visibility = "hidden";
-        viewEl.style.pointerEvents = "none";
-        viewEl.style.display = "block";
-      }
-      buildItemView();
-      resizeItemView();
-      requestAnimationFrame(() => {
-        measureItemCards();
-        itemViewReady = true;
-        if (curView !== "item") {
-          stopItemRaf();
-          viewEl.style.display = prevDisplay || "none";
-          viewEl.style.visibility = "";
-          viewEl.style.pointerEvents = "";
-        } else if (!iRafId) {
-          startItemRaf();
-        }
-      });
     }
 
     async function syncMediaFromFolders() {
       try {
         const fromManifest = await loadMediaManifest();
-        if (fromManifest) {
-          applyDiscoveredMedia(fromManifest.portfolioItems, fromManifest.itemImages);
-          return;
-        }
-
-        const [discoveredPortfolioItems, discoveredItemImages] = await Promise.all([
-          discoverSequentialMedia("image", (index, src) => {
-            const meta = makePortfolioMeta(index - 1);
-            return {
-              number: String(index).padStart(2, "0"),
-              title: meta.title,
-              subtitle: meta.subtitle,
-              src
-            };
-          }),
-          discoverSequentialMedia("item", (index, src) => ({
-            src,
-            label: makeItemLabel(index - 1)
-          }))
-        ]);
-
-        applyDiscoveredMedia(discoveredPortfolioItems, discoveredItemImages);
+        applyDiscoveredMedia(fromManifest.portfolioItems, fromManifest.itemImages);
       } catch (error) {
         console.warn("[portfolio] media sync failed", error);
       }
@@ -1685,6 +1622,7 @@
     }
 
     function buildGallery() {
+      resetMediaGroup("bg");
       galleryList.innerHTML = "";
       slitElements.length = 0;
 
@@ -1703,17 +1641,10 @@
           const resolvedSrc = resolvePortfolioItemSrc(item);
           if (resolvedSrc) {
             const img = document.createElement("img");
-            img.src = resolvedSrc;
-            img.alt = item.title;
-            img.loading = "eager";
-            img.decoding = "async";
-            img.fetchPriority = copy === 0 ? "high" : "low";
-            img.draggable = false;
-            img.onerror = () => {
+            observeMedia(img, item, "bg", () => {
               media.innerHTML = "";
               media.appendChild(createSlitPlaceholder(item, "image load failed"));
-            };
-            markImageLoaded(img);
+            });
             media.appendChild(img);
           } else {
             media.appendChild(createSlitPlaceholder(item));
@@ -1748,9 +1679,15 @@
       if (resolvedSrc) {
         const img = document.createElement("img");
         img.className = "slit-expand-img";
-        img.src = resolvedSrc;
+        img.decoding = "async";
+        img.fetchPriority = "high";
+        img.src = resolveAssetSrc(item.previewSrc || item.src);
         img.alt = title;
         img.onerror = () => {
+          if (img.src !== resolvedSrc) {
+            img.src = resolvedSrc;
+            return;
+          }
           slitInner.innerHTML = "";
           const ph = document.createElement("div");
           ph.className = "slit-expand-ph";
@@ -1766,6 +1703,16 @@
           slitInner.appendChild(meta);
         };
         slitInner.appendChild(img);
+        // Show the cached preview immediately while the full-size original loads.
+        if (item.previewSrc) {
+          const original = new Image();
+          original.decoding = "async";
+          original.fetchPriority = "high";
+          original.onload = () => {
+            if (slitInner.contains(img)) img.src = resolvedSrc;
+          };
+          original.src = resolvedSrc;
+        }
       } else {
         const ph = document.createElement("div");
         ph.className = "slit-expand-ph";
@@ -1815,6 +1762,16 @@
     let bgWasScrolling = false;
     let bgFxFrame = 0;
 
+    function canRenderView(view) {
+      return !document.hidden && curView === view &&
+        (!isMobileLayout() || document.body.classList.contains("mobile-gallery-active"));
+    }
+
+    function stopRender() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+
     function clearBgSlitFx() {
       for (let s = 0; s < slitElements.length; s += 1) {
         const { slit, media } = slitElements[s];
@@ -1831,6 +1788,8 @@
     }
 
     function render() {
+      rafId = null;
+      if (!canRenderView("bg")) return;
       const mobile = isMobileLayout();
       const count = portfolioItems.length;
       const loopSpan = count * slitPitch;
@@ -1970,13 +1929,13 @@
         }
       }
 
-      rafId = requestAnimationFrame(render);
+      if (bgDragging || bgPointerDown || bgVel || bgSpeedSmooth || bgSpeedAmtSmooth || bgWave.some((wave) => wave > 0)) {
+        rafId = requestAnimationFrame(render);
+      }
     }
 
     function startRender() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
-      render();
+      if (!rafId && canRenderView("bg")) rafId = requestAnimationFrame(render);
     }
 
 
@@ -1984,28 +1943,7 @@
        소품 이미지 목록 (src에 경로 입력)
        예: src: "item/prop01.png"
     ═══════════════════════════════════════════ */
-    let itemImages = [
-      {src:"",label:"소품 01"},{src:"",label:"소품 02"},{src:"",label:"소품 03"},
-      {src:"",label:"소품 04"},{src:"",label:"소품 05"},{src:"",label:"소품 06"},
-      {src:"",label:"소품 07"},{src:"",label:"소품 08"},{src:"",label:"소품 09"},
-      {src:"",label:"소품 10"},{src:"",label:"소품 11"},{src:"",label:"소품 12"},
-      {src:"",label:"소품 13"},{src:"",label:"소품 14"},{src:"",label:"소품 15"},
-      {src:"",label:"소품 16"},{src:"",label:"소품 17"},{src:"",label:"소품 18"},
-      {src:"",label:"소품 19"},{src:"",label:"소품 20"},{src:"",label:"소품 21"},
-      {src:"",label:"소품 22"},{src:"",label:"소품 23"},{src:"",label:"소품 24"},
-      {src:"",label:"소품 25"},{src:"",label:"소품 26"},{src:"",label:"소품 27"},
-      {src:"",label:"소품 28"},{src:"",label:"소품 29"},{src:"",label:"소품 30"},
-      {src:"",label:"소품 31"},{src:"",label:"소품 32"},{src:"",label:"소품 33"},
-      {src:"",label:"소품 34"},{src:"",label:"소품 35"},{src:"",label:"소품 36"},
-      {src:"",label:"소품 37"},{src:"",label:"소품 38"},{src:"",label:"소품 39"},
-      {src:"",label:"소품 40"},{src:"",label:"소품 41"},{src:"",label:"소품 42"},
-      {src:"",label:"소품 43"},{src:"",label:"소품 44"},{src:"",label:"소품 45"},
-      {src:"",label:"소품 46"},{src:"",label:"소품 47"},{src:"",label:"소품 48"},
-      {src:"",label:"소품 49"},{src:"",label:"소품 50"},{src:"",label:"소품 51"},
-      {src:"",label:"소품 52"},{src:"",label:"소품 53"},{src:"",label:"소품 54"},
-      {src:"",label:"소품 55"},{src:"",label:"소품 56"},{src:"",label:"소품 57"},
-      {src:"",label:"소품 58"},{src:"",label:"소품 59"},{src:"",label:"소품 60"},
-    ];
+    let itemImages = [];
 
     /* 컬럼별 플레이스홀더 비율 — 열마다 다른 리듬으로 메이슨리 느낌 */
     const ITEM_COL_RATIOS = [
@@ -2037,10 +1975,10 @@
     const itemCols = Array.from({ length: MAX_ITEM_COLS }, (_, idx) => document.getElementById("ic" + idx));
     let itemLoopSpan = 1;
     let activeItemColCount = MAX_ITEM_COLS;
-    let itemMeasureRafId = null;
     let viewSyncRafId = null;
     let galleryVisibilityObserver = null;
     let mobileSnapTimeoutId = null;
+    let lastAppHeight = 0;
 
     function isMobileLayout() {
       return Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0) <= MOBILE_LAYOUT_BREAKPOINT;
@@ -2064,18 +2002,10 @@
       return activeItemColCount;
     }
 
-    function scheduleItemLayoutRefresh(){
-      if(curView !== "item") return;
-      if(itemMeasureRafId) cancelAnimationFrame(itemMeasureRafId);
-      itemMeasureRafId = requestAnimationFrame(() => {
-        itemMeasureRafId = null;
-        resizeItemView();
-        measureItemCards();
-      });
-    }
-
-    function buildItemView(){
+    function buildItemView(minCopies = 3){
+      resetMediaGroup("item");
       itemRegistry.length = 0;
+      itemHoverScales.length = 0;
       itemColLoopHeights.fill(1);
       const nCols = applyItemColumnLayout();
       for(let c=0;c<MAX_ITEM_COLS;c++){
@@ -2111,7 +2041,7 @@
         return Math.max(maxH, colH);
       }, 0);
       /* 필요한 copies = ceil(viewH * 2.5 / estColH) + 1, 최소 3 */
-      ITEM_LOOP_COPIES = Math.max(3, Math.ceil((viewH * 2.5) / Math.max(1, estColH)) + 1);
+      ITEM_LOOP_COPIES = Math.max(minCopies, Math.ceil((viewH * 2.5) / Math.max(1, estColH)) + 1);
 
       for(let c=0;c<nCols;c++){
         const col = itemCols[c];
@@ -2127,17 +2057,7 @@
             const src    = resolveAssetSrc(item.src);
             if(src){
               const img = document.createElement("img");
-              img.src=src; img.alt=item.label||"";
-              img.loading = copy === 0 ? "eager" : "lazy";
-              img.fetchPriority = copy === 0 && localIdx < 8 ? "high" : "auto";
-              img.draggable=false;
-              img.decoding="async";
-              img.onload=()=>{
-                img.classList.add("is-loaded");
-                scheduleItemLayoutRefreshBatched();
-              };
-              img.onerror=()=>{ card.innerHTML=""; addItemPh(card,item.label,ratio); };
-              if (img.complete && img.naturalWidth > 0) img.classList.add("is-loaded");
+              observeMedia(img, item, "item", () => { card.innerHTML=""; addItemPh(card,item.label,ratio); });
               card.appendChild(img);
             } else {
               addItemPh(card, item.label, ratio);
@@ -2154,7 +2074,8 @@
                 number: String(baseIndex + 1).padStart(3, "0"),
                 title: item.label || `소품 ${String(baseIndex + 1).padStart(2, "0")}`,
                 subtitle: "소품 이미지",
-                src: item.src || ""
+                src: item.src || "",
+                previewSrc: item.previewSrc || ""
               }
             });
           });
@@ -2211,10 +2132,14 @@
         ITEM_LOOP_COPIES = neededCopies;
         /* 다음 프레임에서 rebuild (측정 루프 재진입 방지) */
         requestAnimationFrame(() => {
-          buildItemView();
+          buildItemView(neededCopies);
           requestAnimationFrame(() => { measureItemCards(); });
         });
       }
+      // Measurements clear transforms; restore the current loop position even
+      // when the animation is idle or this was a deferred clone-count correction.
+      if (wrap) wrap.style.transform = `translate3d(0, ${-(itemLoopSpan + positiveModulo(iScrollTop, itemLoopSpan))}px, 0)`;
+      startItemRaf();
     }
 
     /* ── 스크롤 상태 ── */
@@ -2239,6 +2164,8 @@
     const itemHoverScales = [];
 
     function renderItemView(){
+      iRafId = null;
+      if (!canRenderView("item")) return;
       const mobile = isMobileLayout();
 
       /* 스크롤: 드래그 중 1:1, 아니면 관성만 */
@@ -2260,6 +2187,7 @@
       const hoverEl = (!mobile && !iDragging) ? hoveredItemEntry?.el : null;
       const activeEl = pressedEl || hoverEl;
       const len = itemRegistry.length;
+      let hoverAnimating = false;
 
       /* 모바일 스크롤 중엔 호버 스케일 루프 스킵 → 끊김 완화 */
       if (mobile && iDragging) {
@@ -2282,6 +2210,7 @@
         const on = activeEl && card === activeEl;
         const target = on ? 1 : 0;
         const cur = itemHoverScales[i] || 0;
+        if (Math.abs(target - cur) > 0.01) hoverAnimating = true;
         if (!on && cur < 0.01) {
           if (card.dataset.hot === "1") {
             card.style.transform = "";
@@ -2307,16 +2236,16 @@
         }
       }
 
-      iRafId = requestAnimationFrame(renderItemView);
+      if (iDragging || iPtrDown || iScrollVel || hoverAnimating) {
+        iRafId = requestAnimationFrame(renderItemView);
+      }
     }
 
     function startItemRaf(){
-      if(iRafId) cancelAnimationFrame(iRafId);
-      renderItemView();
+      if (!iRafId && canRenderView("item")) iRafId = requestAnimationFrame(renderItemView);
     }
     function stopItemRaf(){
       if(iRafId){ cancelAnimationFrame(iRafId); iRafId=null; }
-      if(itemMeasureRafId){ cancelAnimationFrame(itemMeasureRafId); itemMeasureRafId=null; }
       const wrap = document.getElementById("itemWrap");
       if(wrap) wrap.style.transform = "";
     }
@@ -2340,6 +2269,7 @@
         iScrollTop += e.deltaY;
         iTargetScroll = iScrollTop;
         iScrollVel = e.deltaY * getWheelVelocityFactor() + iScrollVel * 0.35;
+        startItemRaf();
       },{passive:false});
 
       iv.addEventListener("pointerdown", e=>{
@@ -2354,9 +2284,11 @@
         iActiveIdx = pressedItemEntry ? pressedItemEntry.dataIndex : -1;
         iv.setPointerCapture(e.pointerId);
         iv.classList.add("is-dragging");
+        startItemRaf();
       });
 
       iv.addEventListener("pointermove", e=>{
+        startItemRaf();
         if(!iPtrDown){
           updateItemHover(e.clientX, e.clientY);
           return;
@@ -2396,6 +2328,7 @@
         }
         iv.classList.remove("is-dragging");
         if(e && iv.hasPointerCapture(e.pointerId)) iv.releasePointerCapture(e.pointerId);
+        startItemRaf();
       }
       iv.addEventListener("pointerup",    endPtr);
       iv.addEventListener("pointercancel",endPtr);
@@ -2410,6 +2343,7 @@
           pressedItemEntry = null;
           iv.classList.remove("is-dragging");
         }
+        startItemRaf();
       });
     })();
 
@@ -2421,9 +2355,13 @@
     let curView = "bg";
 
     function syncCurrentViewLayout(options = {}) {
-      const { rebuildItemView = false, restartItemRaf = false } = options;
+      const { rebuildItemView = false } = options;
       resizeGallery();
-      if (curView !== "item") return;
+      if (curView !== "item") {
+        startRender();
+        pumpMediaQueue();
+        return;
+      }
 
       const nextColCount = getItemColumnCount();
       if (rebuildItemView || nextColCount !== activeItemColCount || itemRegistry.length === 0) {
@@ -2435,31 +2373,41 @@
 
       resizeItemView();
       requestAnimationFrame(() => {
+        if (curView !== "item") return;
         measureItemCards();
-        if (restartItemRaf || !iRafId) startItemRaf();
+        startItemRaf();
+        pumpMediaQueue();
       });
     }
 
     function scheduleCurrentViewLayout(options = {}) {
-      const { rebuildItemView = false, restartItemRaf = false } = options;
+      const { rebuildItemView = false } = options;
       if (viewSyncRafId) cancelAnimationFrame(viewSyncRafId);
       viewSyncRafId = requestAnimationFrame(() => {
         viewSyncRafId = null;
         if (isMobileLayout()) {
-          requestAnimationFrame(() => syncCurrentViewLayout({ rebuildItemView, restartItemRaf }));
+          requestAnimationFrame(() => syncCurrentViewLayout({ rebuildItemView }));
           return;
         }
-        syncCurrentViewLayout({ rebuildItemView, restartItemRaf });
+        syncCurrentViewLayout({ rebuildItemView });
       });
     }
 
     function setMobileGalleryState(isActive) {
-      document.body.classList.toggle("mobile-gallery-active", Boolean(isActive) && isMobileLayout());
+      const active = Boolean(isActive) && isMobileLayout();
+      const wasActive = document.body.classList.contains("mobile-gallery-active");
+      document.body.classList.toggle("mobile-gallery-active", active);
       if (shellRoot) {
-        shellRoot.classList.toggle("is-gallery-page", Boolean(isActive) && isMobileLayout());
+        shellRoot.classList.toggle("is-gallery-page", active);
       }
-      if (isActive) {
+      if (active === wasActive) return;
+      if (active) {
         scheduleCurrentViewLayout({ rebuildItemView: curView === "item" && getItemColumnCount() !== activeItemColCount });
+      } else if (isMobileLayout()) {
+        stopRender();
+        stopItemRaf();
+      } else {
+        curView === "bg" ? startRender() : startItemRaf();
       }
     }
 
@@ -2504,6 +2452,7 @@
       if(v===curView) return;
       curView=v;
       if(v==="item"){
+        stopRender();
         document.getElementById("btnBg").classList.remove("is-active");
         document.getElementById("btnItem").classList.add("is-active");
         bgView.style.display = "none";
@@ -2511,8 +2460,7 @@
         itemView.style.pointerEvents = "";
         itemView.style.display = "block";
         const needsRebuild = !itemViewReady || itemRegistry.length === 0;
-        scheduleCurrentViewLayout({ rebuildItemView: needsRebuild, restartItemRaf: true });
-        if (!itemViewReady) prepareItemViewInBackground();
+        scheduleCurrentViewLayout({ rebuildItemView: needsRebuild });
       } else {
         document.getElementById("btnBg").classList.add("is-active");
         document.getElementById("btnItem").classList.remove("is-active");
@@ -2521,6 +2469,7 @@
         bgView.style.display = "";
         scheduleCurrentViewLayout();
       }
+      pumpMediaQueue();
     }
 
     document.getElementById("btnBg").addEventListener("click",   ()=>switchView("bg"));
@@ -2542,24 +2491,35 @@
 
     function syncAppHeight() {
       const viewportHeight = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight || 0;
-      if (viewportHeight > 0) {
-        document.documentElement.style.setProperty("--app-height", `${Math.round(viewportHeight)}px`);
+      const nextHeight = Math.round(viewportHeight);
+      if (nextHeight > 0 && nextHeight !== lastAppHeight) {
+        lastAppHeight = nextHeight;
+        document.documentElement.style.setProperty("--app-height", `${nextHeight}px`);
       }
     }
 
     syncAppHeight();
-    buildGallery();
     applyItemColumnLayout();
     scheduleCurrentViewLayout();
-    startRender();
     syncMediaFromFolders();
     initMobileGalleryObserver();
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        stopRender();
+        stopItemRaf();
+      } else {
+        curView === "bg" ? startRender() : startItemRaf();
+        pumpMediaQueue();
+      }
+    });
 
     galleryStage.addEventListener("wheel", (e) => {
       e.preventDefault();
       bgScroll += e.deltaY;
       bgVel = e.deltaY * getWheelVelocityFactor() + bgVel * 0.4;
       syncBgCompatAliases();
+      startRender();
     }, { passive: false });
 
     galleryStage.addEventListener("pointerdown", (e) => {
@@ -2580,9 +2540,11 @@
       galleryStage.setPointerCapture(e.pointerId);
       galleryScroll.classList.add("is-dragging");
       document.body.classList.add("dragging-gallery");
+      startRender();
     });
 
     galleryStage.addEventListener("pointermove", (e) => {
+      startRender();
       if (!bgPointerDown) {
         if (!isMobileLayout()) updateHover(e.clientX, e.clientY);
         return;
@@ -2623,6 +2585,7 @@
       if (e && galleryStage.hasPointerCapture(e.pointerId)) {
         galleryStage.releasePointerCapture(e.pointerId);
       }
+      startRender();
     }
 
     galleryStage.addEventListener("pointerup", endPointer);
@@ -2637,6 +2600,7 @@
         galleryScroll.classList.remove("is-dragging");
         document.body.classList.remove("dragging-gallery");
       }
+      startRender();
     });
 
     /* ── 확대 오버레이 닫기 ── */
